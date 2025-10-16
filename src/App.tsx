@@ -33,6 +33,15 @@ function App() {
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false })
   const [savedImages, setSavedImages] = useState<SavedImage[]>([])
   const [cutAnimation, setCutAnimation] = useState<{ imageUrl: string; height: number } | null>(null)
+  const [tornEdgePath] = useState(() => {
+    // Generate torn edge path once
+    const points = Array.from({ length: 40 }, (_, i) => {
+      const x = (i / 40) * CANVAS_WIDTH
+      const y = 20 - Math.random() * 8 - (Math.sin(i * 0.5) * 3)
+      return `L${x},${y}`
+    }).join(' ')
+    return `M0,20 ${points} L${CANVAS_WIDTH},20 Z`
+  })
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDrawing = useRef(false)
@@ -571,6 +580,27 @@ function App() {
           gap: '16px'
         }}>
           <div style={{ position: 'relative' }}>
+            {/* Torn paper edge at top */}
+            <svg
+              width={CANVAS_WIDTH}
+              height="20"
+              viewBox={`0 0 ${CANVAS_WIDTH} 20`}
+              style={{
+                position: 'absolute',
+                top: '-20px',
+                left: 0,
+                zIndex: 1
+              }}
+              preserveAspectRatio="none"
+            >
+              <path
+                d={tornEdgePath}
+                fill="#fff"
+                stroke="#ddd"
+                strokeWidth="1"
+              />
+            </svg>
+
             <canvas
               ref={canvasRef}
               width={CANVAS_WIDTH}
