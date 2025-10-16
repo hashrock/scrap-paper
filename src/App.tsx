@@ -79,6 +79,7 @@ function App() {
       }}>
         {mode === 'gallery' ? (
           <GalleryView
+            directoryHandle={directoryHandle}
             images={savedImages}
             onImageDeleted={reloadSavedImages}
           />

@@ -2,11 +2,12 @@ import { useState } from 'react'
 import type { SavedImage } from '../types'
 
 interface GalleryViewProps {
+  directoryHandle: FileSystemDirectoryHandle
   images: SavedImage[]
   onImageDeleted?: () => void
 }
 
-const GalleryView = ({ images, onImageDeleted }: GalleryViewProps) => {
+const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewProps) => {
   const [selectedImage, setSelectedImage] = useState<SavedImage | null>(null)
   const [deletingImage, setDeletingImage] = useState<string | null>(null)
 
@@ -18,7 +19,7 @@ const GalleryView = ({ images, onImageDeleted }: GalleryViewProps) => {
 
     setDeletingImage(image.name)
     try {
-      await image.fileHandle.remove()
+      await directoryHandle.removeEntry(image.name, { recursive: false })
       onImageDeleted?.()
     } catch (err) {
       console.error('Failed to delete image', err)

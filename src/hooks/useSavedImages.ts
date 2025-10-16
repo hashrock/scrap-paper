@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { CURRENT_CANVAS_FILENAME } from '../constants'
 import type { SavedImage } from '../types'
 
 interface UseSavedImagesResult {
@@ -28,6 +29,9 @@ const useSavedImages = (directoryHandle: FileSystemDirectoryHandle | null): UseS
       const images: SavedImage[] = []
       for await (const entry of directoryHandle.values()) {
         if (entry.kind === 'file' && entry.name.endsWith('.png')) {
+          if (entry.name === CURRENT_CANVAS_FILENAME) {
+            continue
+          }
           const fileHandle = entry as FileSystemFileHandle
           const file = await fileHandle.getFile()
           const url = URL.createObjectURL(file)

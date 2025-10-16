@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
+import { CURRENT_CANVAS_FILENAME } from '../constants'
 import type { Tool } from '../types'
 
 const INITIAL_CANVAS_HEIGHT = 1200
@@ -8,6 +9,7 @@ const CANVAS_EXTEND_HEIGHT = 400
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 2
 const ZOOM_STEP = 0.25
+const MAX_HISTORY = 20
 
 interface CutAnimationState {
   imageUrl: string
@@ -19,6 +21,11 @@ interface CanvasWorkspaceProps {
   tool: Tool
   strokeWidth: number
   onImageSaved: (filename: string) => void
+}
+
+interface CanvasSnapshot {
+  imageData: ImageData
+  height: number
 }
 
 const generateFilename = () => {
@@ -34,12 +41,17 @@ const CanvasWorkspace = ({
 }: CanvasWorkspaceProps) => {
   const [canvasHeight, setCanvasHeight] = useState(INITIAL_CANVAS_HEIGHT)
   const [zoom, setZoom] = useState(1)
+  const [canUndo, setCanUndo] = useState(false)
   const [hoveredScissorY, setHoveredScissorY] = useState<number | null>(null)
   const [cutAnimation, setCutAnimation] = useState<CutAnimationState | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawing = useRef(false)
   const isExtending = useRef(false)
   const needsExtension = useRef(false)
+  const historyRef = useRef<CanvasSnapshot[]>([])
+  const skipBackgroundFillRef = useRef(false)
+  const pendingRestoreRef = useRef<CanvasSnapshot | null>(null)
+  const autoSaveTimeoutRef = useRef<number | null>(null)
 
   const tornEdgePath = useMemo(() => {
     const points = Array.from({ length: 40 }, (_, i) => {
@@ -56,6 +68,77 @@ const CanvasWorkspace = ({
     return canvas.getContext('2d')
   }, [])
 
+  const captureSnapshot = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = getCanvasContext()
+    if (!ctx) return
+
+    try {
+      const imageData = ctx.getImageData(0, 0, CANVAS_WIDTH, canvasHeight)
+      const snapshot: CanvasSnapshot = { imageData, height: canvasHeight }
+      const updatedHistory = [...historyRef.current, snapshot]
+      if (updatedHistory.length > MAX_HISTORY) {
+        updatedHistory.shift()
+      }
+      historyRef.current = updatedHistory
+      setCanUndo(updatedHistory.length > 0)
+    } catch (err) {
+      console.error('Failed to capture snapshot', err)
+    }
+  }, [canvasHeight, getCanvasContext])
+
+  const restoreSnapshot = useCallback((snapshot: CanvasSnapshot | null) => {
+    if (!snapshot) return
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    if (canvas.height !== snapshot.height) {
+      pendingRestoreRef.current = snapshot
+      skipBackgroundFillRef.current = true
+      setCanvasHeight(snapshot.height)
+      return
+    }
+
+    const ctx = getCanvasContext()
+    if (!ctx) return
+    ctx.putImageData(snapshot.imageData, 0, 0)
+    ctx.beginPath()
+  }, [getCanvasContext])
+
+  const saveCurrentCanvas = useCallback(async () => {
+    const canvas = canvasRef.current
+    if (!canvas || !directoryHandle) return
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((result) => resolve(result), 'image/png')
+    })
+
+    if (!blob) return
+
+    try {
+      const fileHandle = await directoryHandle.getFileHandle(CURRENT_CANVAS_FILENAME, { create: true })
+      const writable = await fileHandle.createWritable()
+      await writable.write(blob)
+      await writable.close()
+    } catch (err) {
+      console.error('Failed to save current canvas', err)
+    }
+  }, [directoryHandle])
+
+  const scheduleAutoSave = useCallback(() => {
+    if (!directoryHandle) return
+    if (autoSaveTimeoutRef.current !== null) {
+      window.clearTimeout(autoSaveTimeoutRef.current)
+    }
+
+    autoSaveTimeoutRef.current = window.setTimeout(() => {
+      autoSaveTimeoutRef.current = null
+      void saveCurrentCanvas()
+    }, 1000)
+  }, [directoryHandle, saveCurrentCanvas])
+
   const extendCanvas = useCallback(() => {
     if (isExtending.current) return
     isExtending.current = true
@@ -65,6 +148,8 @@ const CanvasWorkspace = ({
       isExtending.current = false
       return
     }
+
+    captureSnapshot()
 
     const currentImageData = canvas.toDataURL('image/png')
     const newHeight = canvasHeight + CANVAS_EXTEND_HEIGHT
@@ -84,10 +169,15 @@ const CanvasWorkspace = ({
       img.onload = () => {
         ctx.drawImage(img, 0, 0)
         isExtending.current = false
+        scheduleAutoSave()
+      }
+      img.onerror = () => {
+        console.error('Failed to rehydrate canvas after extension')
+        isExtending.current = false
       }
       img.src = currentImageData
     }, 0)
-  }, [canvasHeight, getCanvasContext])
+  }, [canvasHeight, captureSnapshot, getCanvasContext, scheduleAutoSave])
 
   const adjustZoom = useCallback((direction: 'in' | 'out') => {
     setZoom((prev) => {
@@ -104,6 +194,36 @@ const CanvasWorkspace = ({
 
   const zoomPercentage = useMemo(() => Math.round(zoom * 100), [zoom])
 
+  const handleUndo = useCallback(() => {
+    if (historyRef.current.length === 0) {
+      return
+    }
+
+    const history = historyRef.current
+    const snapshot = history[history.length - 1]
+    historyRef.current = history.slice(0, -1)
+    setCanUndo(historyRef.current.length > 0)
+    restoreSnapshot(snapshot)
+    scheduleAutoSave()
+  }, [restoreSnapshot, scheduleAutoSave])
+
+  const handleClear = useCallback(() => {
+    if (!confirm('Clear the canvas?')) return
+    captureSnapshot()
+
+    const ctx = getCanvasContext()
+    if (!ctx) return
+
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0, 0, CANVAS_WIDTH, canvasHeight)
+    ctx.beginPath()
+    if (hoveredScissorY !== null) {
+      setHoveredScissorY(null)
+    }
+    needsExtension.current = false
+    scheduleAutoSave()
+  }, [canvasHeight, captureSnapshot, getCanvasContext, hoveredScissorY, scheduleAutoSave])
+
   const handleMouseDown = useCallback((event: MouseEvent<HTMLCanvasElement>) => {
     isDrawing.current = true
     const canvas = canvasRef.current
@@ -112,6 +232,8 @@ const CanvasWorkspace = ({
     const rect = canvas.getBoundingClientRect()
     const x = (event.clientX - rect.left) / zoom
     const y = (event.clientY - rect.top) / zoom
+
+    captureSnapshot()
 
     const ctx = getCanvasContext()
     if (!ctx) return
@@ -122,7 +244,7 @@ const CanvasWorkspace = ({
     ctx.lineWidth = strokeWidth
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
-  }, [getCanvasContext, strokeWidth, tool, zoom])
+  }, [captureSnapshot, getCanvasContext, strokeWidth, tool, zoom])
 
   const handleMouseMove = useCallback((event: MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing.current) return
@@ -151,12 +273,17 @@ const CanvasWorkspace = ({
     if (needsExtension.current) {
       needsExtension.current = false
       extendCanvas()
+      return
     }
-  }, [extendCanvas])
+
+    scheduleAutoSave()
+  }, [extendCanvas, scheduleAutoSave])
 
   const handleScissorClick = useCallback(async (y: number) => {
     const canvas = canvasRef.current
     if (!canvas) return
+
+    captureSnapshot()
 
     const upperCanvas = document.createElement('canvas')
     upperCanvas.width = CANVAS_WIDTH
@@ -204,6 +331,7 @@ const CanvasWorkspace = ({
             newCtx.fillStyle = 'white'
             newCtx.fillRect(0, 0, CANVAS_WIDTH, newHeight)
             newCtx.putImageData(lowerImageData, 0, 0)
+            scheduleAutoSave()
           }, 0)
         }, 100)
 
@@ -213,15 +341,48 @@ const CanvasWorkspace = ({
         alert('Failed to save file')
       }
     }, 'image/png')
-  }, [canvasHeight, directoryHandle, getCanvasContext, hoveredScissorY, onImageSaved])
+  }, [canvasHeight, captureSnapshot, directoryHandle, getCanvasContext, hoveredScissorY, onImageSaved, scheduleAutoSave])
 
   useEffect(() => {
     const ctx = getCanvasContext()
     if (!ctx) return
 
+    if (skipBackgroundFillRef.current) {
+      skipBackgroundFillRef.current = false
+      return
+    }
+
     ctx.fillStyle = 'white'
     ctx.fillRect(0, 0, CANVAS_WIDTH, canvasHeight)
   }, [canvasHeight, directoryHandle, getCanvasContext])
+
+  useEffect(() => {
+    if (!pendingRestoreRef.current) return
+    const snapshot = pendingRestoreRef.current
+    pendingRestoreRef.current = null
+
+    const ctx = getCanvasContext()
+    if (!ctx) return
+    ctx.putImageData(snapshot.imageData, 0, 0)
+    ctx.beginPath()
+  }, [canvasHeight, getCanvasContext])
+
+  useEffect(() => {
+    if (autoSaveTimeoutRef.current !== null) {
+      window.clearTimeout(autoSaveTimeoutRef.current)
+      autoSaveTimeoutRef.current = null
+    }
+    historyRef.current = []
+    setCanUndo(false)
+  }, [directoryHandle])
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current !== null) {
+        window.clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const isAtMinZoom = zoom <= MIN_ZOOM
   const isAtMaxZoom = zoom >= MAX_ZOOM
@@ -235,74 +396,143 @@ const CanvasWorkspace = ({
       alignItems: 'center',
       gap: '16px'
     }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px'
-      }}>
-        <button
-          type="button"
-          onClick={() => adjustZoom('out')}
-          disabled={isAtMinZoom}
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '16px',
-            border: '1px solid #ddd',
-            backgroundColor: '#fff',
-            cursor: isAtMinZoom ? 'not-allowed' : 'pointer',
-            fontSize: '18px',
-            lineHeight: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: isAtMinZoom ? 0.4 : 1
-          }}
-        >
-          -
-        </button>
-        <button
-          type="button"
-          onClick={resetZoom}
-          disabled={zoom === 1}
-          style={{
-            minWidth: '72px',
-            padding: '0 12px',
-            height: '32px',
-            borderRadius: '16px',
-            border: '1px solid #ddd',
-            backgroundColor: '#fff',
-            cursor: zoom === 1 ? 'default' : 'pointer',
-            fontSize: '14px',
-            fontWeight: 500,
-            opacity: zoom === 1 ? 0.6 : 1,
-            fontVariantNumeric: 'tabular-nums'
-          }}
-          title={zoom === 1 ? 'Current zoom' : 'Reset zoom to 100%'}
-        >
-          {zoomPercentage}%
-        </button>
-        <button
-          type="button"
-          onClick={() => adjustZoom('in')}
-          disabled={isAtMaxZoom}
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '16px',
-            border: '1px solid #ddd',
-            backgroundColor: '#fff',
-            cursor: isAtMaxZoom ? 'not-allowed' : 'pointer',
-            fontSize: '18px',
-            lineHeight: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: isAtMaxZoom ? 0.4 : 1
-          }}
-        >
-          +
-        </button>
+      <div
+        style={{
+          width: '100%',
+          maxWidth: `${CANVAS_WIDTH + 120}px`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => adjustZoom('out')}
+            disabled={isAtMinZoom}
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '16px',
+              border: '1px solid #ddd',
+              backgroundColor: '#fff',
+              cursor: isAtMinZoom ? 'not-allowed' : 'pointer',
+              fontSize: '18px',
+              lineHeight: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: isAtMinZoom ? 0.4 : 1
+            }}
+            title="Zoom out"
+          >
+            -
+          </button>
+          <button
+            type="button"
+            onClick={resetZoom}
+            disabled={zoom === 1}
+            style={{
+              minWidth: '72px',
+              padding: '0 12px',
+              height: '32px',
+              borderRadius: '16px',
+              border: '1px solid #ddd',
+              backgroundColor: '#fff',
+              cursor: zoom === 1 ? 'default' : 'pointer',
+              fontSize: '14px',
+              fontWeight: 500,
+              opacity: zoom === 1 ? 0.6 : 1,
+              fontVariantNumeric: 'tabular-nums'
+            }}
+            title={zoom === 1 ? 'Current zoom' : 'Reset zoom to 100%'}
+          >
+            {zoomPercentage}%
+          </button>
+          <button
+            type="button"
+            onClick={() => adjustZoom('in')}
+            disabled={isAtMaxZoom}
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '16px',
+              border: '1px solid #ddd',
+              backgroundColor: '#fff',
+              cursor: isAtMaxZoom ? 'not-allowed' : 'pointer',
+              fontSize: '18px',
+              lineHeight: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: isAtMaxZoom ? 0.4 : 1
+            }}
+            title="Zoom in"
+          >
+            +
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={!canUndo}
+            style={{
+              minWidth: '72px',
+              padding: '0 16px',
+              height: '32px',
+              borderRadius: '16px',
+              border: '1px solid #ddd',
+              backgroundColor: '#fff',
+              cursor: canUndo ? 'pointer' : 'not-allowed',
+              fontSize: '14px',
+              fontWeight: 500,
+              opacity: canUndo ? 1 : 0.4
+            }}
+            title="Undo last change"
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={handleClear}
+            style={{
+              minWidth: '72px',
+              padding: '0 16px',
+              height: '32px',
+              borderRadius: '16px',
+              border: '1px solid #f87171',
+              backgroundColor: '#fff5f5',
+              color: '#dc2626',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 500
+            }}
+            title="Clear the canvas"
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            onClick={extendCanvas}
+            style={{
+              padding: '0 16px',
+              height: '32px',
+              borderRadius: '16px',
+              border: 'none',
+              backgroundColor: '#000',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 600
+            }}
+            title="Extend the canvas"
+          >
+            Extend
+          </button>
+        </div>
       </div>
 
       <div
@@ -485,27 +715,6 @@ const CanvasWorkspace = ({
         </div>
       </div>
 
-      <button
-        onClick={extendCanvas}
-        style={{
-          width: '40px',
-          height: '40px',
-          minWidth: '40px',
-          minHeight: '40px',
-          backgroundColor: '#000',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '50%',
-          cursor: 'pointer',
-          fontSize: '24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0
-        }}
-      >
-        +
-      </button>
     </div>
   )
 }
