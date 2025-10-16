@@ -1,17 +1,5 @@
-import { useState, useRef, useCallback } from 'react'
-import { Stage, Layer, Line } from 'react-konva'
-import Konva from 'konva'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import './App.css'
-
-interface DrawLine {
-  tool: 'pen' | 'eraser'
-  points: number[]
-  strokeWidth: number
-}
-
-interface ScissorLine {
-  y: number
-}
 
 type Tool = 'pen' | 'eraser'
 
@@ -20,95 +8,76 @@ const CANVAS_WIDTH = 800
 const CANVAS_EXTEND_HEIGHT = 400
 
 function App() {
-  const [lines, setLines] = useState<DrawLine[]>([])
   const [canvasHeight, setCanvasHeight] = useState(INITIAL_CANVAS_HEIGHT)
   const [tool, setTool] = useState<Tool>('pen')
   const [strokeWidth, setStrokeWidth] = useState(4)
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null)
-  const [scissorLine, setScissorLine] = useState<ScissorLine | null>(null)
+  const [scissorLine, setScissorLine] = useState<number | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawing = useRef(false)
-  const isPanning = useRef(false)
-  const stageRef = useRef<Konva.Stage>(null)
 
-  const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    // Middle mouse button or Ctrl+click for panning
-    if (e.evt.button === 1 || e.evt.ctrlKey) {
-      isPanning.current = true
-      return
-    }
+  // Initialize canvas with white background
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
 
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // Fill with white
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0, 0, CANVAS_WIDTH, canvasHeight)
+  }, [canvasHeight])
+
+  const getCanvasContext = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+    return canvas.getContext('2d')
+  }
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     isDrawing.current = true
-    const stage = e.target.getStage()
-    if (!stage) return
+    const canvas = canvasRef.current
+    if (!canvas) return
 
-    const pos = stage.getPointerPosition()
-    if (!pos) return
+    const rect = canvas.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
 
-    // Get position relative to the stage (considering scale and position)
-    const transform = stage.getAbsoluteTransform().copy().invert()
-    const relativePos = transform.point(pos)
+    const ctx = getCanvasContext()
+    if (!ctx) return
 
-    setLines([...lines, { tool, points: [relativePos.x, relativePos.y], strokeWidth }])
-  }, [lines, tool, strokeWidth])
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.strokeStyle = tool === 'pen' ? 'black' : 'white'
+    ctx.lineWidth = strokeWidth
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+  }, [tool, strokeWidth])
 
-  const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (isPanning.current) {
-      return
-    }
-
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing.current) return
 
-    const stage = e.target.getStage()
-    if (!stage) return
+    const canvas = canvasRef.current
+    if (!canvas) return
 
-    const point = stage.getPointerPosition()
-    if (!point) return
+    const rect = canvas.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
 
-    // Get position relative to the stage (considering scale and position)
-    const transform = stage.getAbsoluteTransform().copy().invert()
-    const relativePos = transform.point(point)
+    const ctx = getCanvasContext()
+    if (!ctx) return
 
-    const lastLine = lines[lines.length - 1]
-    if (!lastLine) return
-
-    lastLine.points = lastLine.points.concat([relativePos.x, relativePos.y])
-    setLines([...lines.slice(0, -1), lastLine])
-  }, [lines])
+    ctx.lineTo(x, y)
+    ctx.stroke()
+  }, [])
 
   const handleMouseUp = useCallback(() => {
     isDrawing.current = false
-    isPanning.current = false
   }, [])
 
-  const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
-    e.evt.preventDefault()
-
-    const stage = stageRef.current
-    if (!stage) return
-
-    const oldScale = stage.scaleX()
-    const pointer = stage.getPointerPosition()
-    if (!pointer) return
-
-    const mousePointTo = {
-      x: (pointer.x - stage.x()) / oldScale,
-      y: (pointer.y - stage.y()) / oldScale,
-    }
-
-    const scaleBy = 1.1
-    const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy
-
-    // Limit zoom range
-    const limitedScale = Math.max(0.1, Math.min(5, newScale))
-
-    stage.scale({ x: limitedScale, y: limitedScale })
-
-    const newPos = {
-      x: pointer.x - mousePointTo.x * limitedScale,
-      y: pointer.y - mousePointTo.y * limitedScale,
-    }
-
-    stage.position(newPos)
+  const handleMouseLeave = useCallback(() => {
+    isDrawing.current = false
   }, [])
 
   const handleSelectDirectory = async () => {
@@ -121,56 +90,61 @@ function App() {
   }
 
   const extendCanvas = () => {
-    setCanvasHeight(canvasHeight + CANVAS_EXTEND_HEIGHT)
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    // Save current canvas content
+    const currentImageData = canvas.toDataURL('image/png')
+
+    // Update height
+    const newHeight = canvasHeight + CANVAS_EXTEND_HEIGHT
+    setCanvasHeight(newHeight)
+
+    // Restore content after height change
+    setTimeout(() => {
+      const ctx = getCanvasContext()
+      if (!ctx) return
+
+      // Fill new area with white
+      ctx.fillStyle = 'white'
+      ctx.fillRect(0, 0, CANVAS_WIDTH, newHeight)
+
+      // Restore old content
+      const img = new Image()
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0)
+      }
+      img.src = currentImageData
+    }, 0)
   }
 
   const handleScissorClick = (y: number) => {
-    setScissorLine({ y })
+    setScissorLine(y)
   }
 
   const handleCut = async () => {
-    if (!scissorLine || !directoryHandle) {
+    if (scissorLine === null || !directoryHandle) {
       alert('Please select a directory first')
       return
     }
 
-    const stage = stageRef.current
-    if (!stage) return
+    const canvas = canvasRef.current
+    if (!canvas) return
 
     // Create a temporary canvas for the upper part
     const upperCanvas = document.createElement('canvas')
     upperCanvas.width = CANVAS_WIDTH
-    upperCanvas.height = scissorLine.y
+    upperCanvas.height = scissorLine
     const upperCtx = upperCanvas.getContext('2d')
 
     if (!upperCtx) return
 
-    // Fill with white background
-    upperCtx.fillStyle = 'white'
-    upperCtx.fillRect(0, 0, CANVAS_WIDTH, scissorLine.y)
+    // Copy the upper part
+    const ctx = getCanvasContext()
+    if (!ctx) return
 
-    // Draw the upper part of the lines
-    lines.forEach(line => {
-      upperCtx.beginPath()
-      upperCtx.strokeStyle = line.tool === 'pen' ? 'black' : 'white'
-      upperCtx.lineWidth = line.strokeWidth
-      upperCtx.lineCap = 'round'
-      upperCtx.lineJoin = 'round'
-
-      for (let i = 0; i < line.points.length - 1; i += 2) {
-        const x = line.points[i]
-        const y = line.points[i + 1]
-
-        if (y <= scissorLine.y) {
-          if (i === 0) {
-            upperCtx.moveTo(x, y)
-          } else {
-            upperCtx.lineTo(x, y)
-          }
-        }
-      }
-      upperCtx.stroke()
-    })
+    const imageData = ctx.getImageData(0, 0, CANVAS_WIDTH, scissorLine)
+    upperCtx.putImageData(imageData, 0, 0)
 
     // Convert to blob and save
     upperCanvas.toBlob(async (blob) => {
@@ -185,22 +159,26 @@ function App() {
         await writable.write(blob)
         await writable.close()
 
-        // Filter lines to keep only the lower part
-        const newLines = lines.map(line => {
-          const newPoints: number[] = []
-          for (let i = 0; i < line.points.length - 1; i += 2) {
-            const x = line.points[i]
-            const y = line.points[i + 1]
-            if (y > scissorLine.y) {
-              newPoints.push(x, y - scissorLine.y)
-            }
-          }
-          return { ...line, points: newPoints }
-        }).filter(line => line.points.length > 0)
+        // Keep only the lower part
+        const lowerImageData = ctx.getImageData(0, scissorLine, CANVAS_WIDTH, canvasHeight - scissorLine)
 
-        setLines(newLines)
-        setCanvasHeight(canvasHeight - scissorLine.y)
+        // Update canvas height
+        const newHeight = canvasHeight - scissorLine
+        setCanvasHeight(newHeight)
         setScissorLine(null)
+
+        // Restore lower part after height change
+        setTimeout(() => {
+          const newCtx = getCanvasContext()
+          if (!newCtx) return
+
+          // Fill with white
+          newCtx.fillStyle = 'white'
+          newCtx.fillRect(0, 0, CANVAS_WIDTH, newHeight)
+
+          // Draw lower part at top
+          newCtx.putImageData(lowerImageData, 0, 0)
+        }, 0)
       } catch (err) {
         console.error('Failed to save file', err)
         alert('Failed to save file')
@@ -291,7 +269,7 @@ function App() {
         >
           {directoryHandle ? 'Directory Selected' : 'Select Directory'}
         </button>
-        {scissorLine && (
+        {scissorLine !== null && (
           <button
             onClick={handleCut}
             style={{
@@ -309,42 +287,36 @@ function App() {
       </div>
 
       <div style={{ position: 'relative', backgroundColor: '#fff' }}>
-        <Stage
+        <canvas
+          ref={canvasRef}
           width={CANVAS_WIDTH}
           height={canvasHeight}
           onMouseDown={handleMouseDown}
-          onMousemove={handleMouseMove}
-          onMouseup={handleMouseUp}
-          onWheel={handleWheel}
-          draggable
-          ref={stageRef}
-          style={{ backgroundColor: 'white' }}
-        >
-          <Layer>
-            {lines.map((line, i) => (
-              <Line
-                key={i}
-                points={line.points}
-                stroke={line.tool === 'pen' ? 'black' : 'white'}
-                strokeWidth={line.strokeWidth}
-                tension={0.5}
-                lineCap="round"
-                lineJoin="round"
-                globalCompositeOperation={
-                  line.tool === 'eraser' ? 'destination-out' : 'source-over'
-                }
-              />
-            ))}
-            {scissorLine && (
-              <Line
-                points={[0, scissorLine.y, CANVAS_WIDTH, scissorLine.y]}
-                stroke="red"
-                strokeWidth={2}
-                dash={[10, 5]}
-              />
-            )}
-          </Layer>
-        </Stage>
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          style={{
+            border: '1px solid #ccc',
+            cursor: 'crosshair',
+            display: 'block'
+          }}
+        />
+
+        {/* Scissor line indicator */}
+        {scissorLine !== null && (
+          <div
+            style={{
+              position: 'absolute',
+              top: `${scissorLine}px`,
+              left: 0,
+              width: '100%',
+              height: '2px',
+              backgroundColor: 'red',
+              pointerEvents: 'none',
+              boxShadow: '0 0 4px rgba(255, 0, 0, 0.5)'
+            }}
+          />
+        )}
 
         {/* Scissor buttons on the right edge */}
         <div style={{
@@ -365,7 +337,7 @@ function App() {
                 style={{
                   width: '30px',
                   height: '30px',
-                  backgroundColor: scissorLine?.y === y ? '#f44336' : '#fff',
+                  backgroundColor: scissorLine === y ? '#f44336' : '#fff',
                   border: '1px solid #333',
                   borderRadius: '4px',
                   cursor: 'pointer',
