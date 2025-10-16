@@ -32,6 +32,7 @@ function App() {
   const [hoveredScissorY, setHoveredScissorY] = useState<number | null>(null)
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false })
   const [savedImages, setSavedImages] = useState<SavedImage[]>([])
+  const [cutAnimation, setCutAnimation] = useState<{ imageUrl: string; height: number } | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDrawing = useRef(false)
@@ -232,6 +233,15 @@ function App() {
     const imageData = ctx.getImageData(0, 0, CANVAS_WIDTH, y)
     upperCtx.putImageData(imageData, 0, 0)
 
+    // Start animation with the upper part
+    const animationImageUrl = upperCanvas.toDataURL('image/png')
+    setCutAnimation({ imageUrl: animationImageUrl, height: y })
+
+    // Remove animation after it completes
+    setTimeout(() => {
+      setCutAnimation(null)
+    }, 800)
+
     // Convert to blob and save
     upperCanvas.toBlob(async (blob) => {
       if (!blob) return
@@ -255,22 +265,24 @@ function App() {
         // Keep only the lower part
         const lowerImageData = ctx.getImageData(0, y, CANVAS_WIDTH, canvasHeight - y)
 
-        // Update canvas height
-        const newHeight = canvasHeight - y
-        setCanvasHeight(newHeight)
-
-        // Restore lower part after height change
+        // Update canvas height after a short delay to let animation start
         setTimeout(() => {
-          const newCtx = getCanvasContext()
-          if (!newCtx) return
+          const newHeight = canvasHeight - y
+          setCanvasHeight(newHeight)
 
-          // Fill with white
-          newCtx.fillStyle = 'white'
-          newCtx.fillRect(0, 0, CANVAS_WIDTH, newHeight)
+          // Restore lower part after height change
+          setTimeout(() => {
+            const newCtx = getCanvasContext()
+            if (!newCtx) return
 
-          // Draw lower part at top
-          newCtx.putImageData(lowerImageData, 0, 0)
-        }, 0)
+            // Fill with white
+            newCtx.fillStyle = 'white'
+            newCtx.fillRect(0, 0, CANVAS_WIDTH, newHeight)
+
+            // Draw lower part at top
+            newCtx.putImageData(lowerImageData, 0, 0)
+          }, 0)
+        }, 100)
       } catch (err) {
         console.error('Failed to save file', err)
         alert('Failed to save file')
@@ -575,8 +587,35 @@ function App() {
               }}
             />
 
+            {/* Cut animation */}
+            {cutAnimation && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: `${CANVAS_WIDTH}px`,
+                  height: `${cutAnimation.height}px`,
+                  pointerEvents: 'none',
+                  animation: 'slideUp 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards',
+                  zIndex: 100
+                }}
+              >
+                <img
+                  src={cutAnimation.imageUrl}
+                  alt="Cut animation"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'block',
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+                  }}
+                />
+              </div>
+            )}
+
             {/* Gray overlay for cut area */}
-            {hoveredScissorY !== null && (
+            {hoveredScissorY !== null && !cutAnimation && (
               <>
                 <div
                   style={{
