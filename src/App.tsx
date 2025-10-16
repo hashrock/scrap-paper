@@ -45,6 +45,8 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDrawing = useRef(false)
+  const isExtending = useRef(false)
+  const needsExtension = useRef(false)
 
   // Load recent directories on mount
   useEffect(() => {
@@ -116,6 +118,45 @@ function App() {
     return canvas.getContext('2d')
   }
 
+  const extendCanvas = useCallback(() => {
+    if (isExtending.current) return
+    isExtending.current = true
+
+    const canvas = canvasRef.current
+    if (!canvas) {
+      isExtending.current = false
+      return
+    }
+
+    // Save current canvas content
+    const currentImageData = canvas.toDataURL('image/png')
+
+    // Update height
+    const newHeight = canvasHeight + CANVAS_EXTEND_HEIGHT
+    setCanvasHeight(newHeight)
+
+    // Restore content after height change
+    setTimeout(() => {
+      const ctx = getCanvasContext()
+      if (!ctx) {
+        isExtending.current = false
+        return
+      }
+
+      // Fill new area with white
+      ctx.fillStyle = 'white'
+      ctx.fillRect(0, 0, CANVAS_WIDTH, newHeight)
+
+      // Restore old content
+      const img = new Image()
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0)
+        isExtending.current = false
+      }
+      img.src = currentImageData
+    }, 0)
+  }, [canvasHeight])
+
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     isDrawing.current = true
     const canvas = canvasRef.current
@@ -151,15 +192,32 @@ function App() {
 
     ctx.lineTo(x, y)
     ctx.stroke()
-  }, [])
+
+    // Mark that extension is needed if drawing near the bottom (within 200px)
+    if (y > canvasHeight - 200) {
+      needsExtension.current = true
+    }
+  }, [canvasHeight])
 
   const handleMouseUp = useCallback(() => {
     isDrawing.current = false
-  }, [])
+
+    // Extend canvas after drawing is complete if needed
+    if (needsExtension.current) {
+      needsExtension.current = false
+      extendCanvas()
+    }
+  }, [extendCanvas])
 
   const handleMouseLeave = useCallback(() => {
     isDrawing.current = false
-  }, [])
+
+    // Extend canvas after drawing is complete if needed
+    if (needsExtension.current) {
+      needsExtension.current = false
+      extendCanvas()
+    }
+  }, [extendCanvas])
 
   const handleSelectNewDirectory = async () => {
     try {
@@ -187,35 +245,6 @@ function App() {
       await removeDirectory(entry.id)
       await loadRecentDirectories()
     }
-  }
-
-  const extendCanvas = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    // Save current canvas content
-    const currentImageData = canvas.toDataURL('image/png')
-
-    // Update height
-    const newHeight = canvasHeight + CANVAS_EXTEND_HEIGHT
-    setCanvasHeight(newHeight)
-
-    // Restore content after height change
-    setTimeout(() => {
-      const ctx = getCanvasContext()
-      if (!ctx) return
-
-      // Fill new area with white
-      ctx.fillStyle = 'white'
-      ctx.fillRect(0, 0, CANVAS_WIDTH, newHeight)
-
-      // Restore old content
-      const img = new Image()
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0)
-      }
-      img.src = currentImageData
-    }, 0)
   }
 
   const handleScissorClick = async (y: number) => {
