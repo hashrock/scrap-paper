@@ -78,7 +78,10 @@ function App() {
         padding: '40px'
       }}>
         {mode === 'gallery' ? (
-          <GalleryView images={savedImages} />
+          <GalleryView
+            images={savedImages}
+            onImageDeleted={reloadSavedImages}
+          />
         ) : (
           <CanvasWorkspace
             directoryHandle={directoryHandle}

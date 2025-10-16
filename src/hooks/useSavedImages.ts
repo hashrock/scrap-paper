@@ -31,7 +31,7 @@ const useSavedImages = (directoryHandle: FileSystemDirectoryHandle | null): UseS
           const fileHandle = entry as FileSystemFileHandle
           const file = await fileHandle.getFile()
           const url = URL.createObjectURL(file)
-          images.push({ name: entry.name, url, file })
+          images.push({ name: entry.name, url, file, fileHandle })
         }
       }
 

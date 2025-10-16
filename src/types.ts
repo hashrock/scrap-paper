@@ -12,6 +12,7 @@ export interface SavedImage {
   name: string
   url: string
   file: File
+  fileHandle: FileSystemFileHandle
 }
 
 export interface ToastState {
