@@ -64,7 +64,8 @@ function App() {
       const images: SavedImage[] = []
       for await (const entry of directoryHandle.values()) {
         if (entry.kind === 'file' && entry.name.endsWith('.png')) {
-          const file = await entry.getFile()
+          const fileHandle = entry as FileSystemFileHandle
+          const file = await fileHandle.getFile()
           const url = URL.createObjectURL(file)
           images.push({ name: entry.name, url, file })
         }
