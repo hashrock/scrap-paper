@@ -3,6 +3,7 @@ import { saveDirectoryHandle, getRecentDirectories, removeDirectory } from './db
 import './App.css'
 
 type Tool = 'pen' | 'eraser'
+type Mode = 'canvas' | 'gallery'
 
 const INITIAL_CANVAS_HEIGHT = 1200
 const CANVAS_WIDTH = 800
@@ -15,7 +16,14 @@ interface DirectoryEntry {
   lastUsed: number
 }
 
+interface SavedImage {
+  name: string
+  url: string
+  file: File
+}
+
 function App() {
+  const [mode, setMode] = useState<Mode>('canvas')
   const [canvasHeight, setCanvasHeight] = useState(INITIAL_CANVAS_HEIGHT)
   const [tool, setTool] = useState<Tool>('pen')
   const [strokeWidth, setStrokeWidth] = useState(4)
@@ -23,6 +31,7 @@ function App() {
   const [recentDirs, setRecentDirs] = useState<DirectoryEntry[]>([])
   const [hoveredScissorY, setHoveredScissorY] = useState<number | null>(null)
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false })
+  const [savedImages, setSavedImages] = useState<SavedImage[]>([])
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDrawing = useRef(false)
@@ -47,6 +56,33 @@ function App() {
       setToast({ message: '', visible: false })
     }, 3000)
   }
+
+  const loadSavedImages = async () => {
+    if (!directoryHandle) return
+
+    try {
+      const images: SavedImage[] = []
+      for await (const entry of directoryHandle.values()) {
+        if (entry.kind === 'file' && entry.name.endsWith('.png')) {
+          const file = await entry.getFile()
+          const url = URL.createObjectURL(file)
+          images.push({ name: entry.name, url, file })
+        }
+      }
+      // Sort by name (which is timestamp-based)
+      images.sort((a, b) => b.name.localeCompare(a.name))
+      setSavedImages(images)
+    } catch (err) {
+      console.error('Failed to load images', err)
+    }
+  }
+
+  // Load images when switching to gallery mode
+  useEffect(() => {
+    if (mode === 'gallery' && directoryHandle) {
+      loadSavedImages()
+    }
+  }, [mode, directoryHandle])
 
   // Initialize canvas with white background
   useEffect(() => {
@@ -210,6 +246,11 @@ function App() {
         // Show success toast
         showToast(`Saved ${filename}`)
 
+        // Reload images if in gallery mode
+        if (mode === 'gallery') {
+          loadSavedImages()
+        }
+
         // Keep only the lower part
         const lowerImageData = ctx.getImageData(0, y, CANVAS_WIDTH, canvasHeight - y)
 
@@ -333,11 +374,11 @@ function App() {
       }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
-            onClick={() => setTool('pen')}
+            onClick={() => setMode('canvas')}
             style={{
               padding: '8px 16px',
-              backgroundColor: tool === 'pen' ? '#000' : '#fff',
-              color: tool === 'pen' ? '#fff' : '#000',
+              backgroundColor: mode === 'canvas' ? '#000' : '#fff',
+              color: mode === 'canvas' ? '#fff' : '#000',
               border: '1px solid #000',
               borderRadius: '4px',
               cursor: 'pointer',
@@ -345,14 +386,14 @@ function App() {
               fontWeight: '500'
             }}
           >
-            Pen
+            Canvas
           </button>
           <button
-            onClick={() => setTool('eraser')}
+            onClick={() => setMode('gallery')}
             style={{
               padding: '8px 16px',
-              backgroundColor: tool === 'eraser' ? '#000' : '#fff',
-              color: tool === 'eraser' ? '#fff' : '#000',
+              backgroundColor: mode === 'gallery' ? '#000' : '#fff',
+              color: mode === 'gallery' ? '#fff' : '#000',
               border: '1px solid #000',
               borderRadius: '4px',
               cursor: 'pointer',
@@ -360,40 +401,83 @@ function App() {
               fontWeight: '500'
             }}
           >
-            Eraser
+            Gallery
           </button>
         </div>
 
-        <div style={{ width: '1px', height: '24px', backgroundColor: '#ddd' }} />
+        {mode === 'canvas' && (
+          <>
+            <div style={{ width: '1px', height: '24px', backgroundColor: '#ddd' }} />
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span style={{ fontSize: '14px', color: '#666' }}>Size:</span>
-          {strokeWidthOptions.map(size => (
-            <button
-              key={size}
-              onClick={() => setStrokeWidth(size)}
-              style={{
-                padding: '6px 12px',
-                backgroundColor: strokeWidth === size ? '#000' : '#fff',
-                color: strokeWidth === size ? '#fff' : '#000',
-                border: '1px solid #000',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                minWidth: '32px'
-              }}
-            >
-              {size}
-            </button>
-          ))}
-        </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button
+                onClick={() => setTool('pen')}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: tool === 'pen' ? '#000' : '#fff',
+                  color: tool === 'pen' ? '#fff' : '#000',
+                  border: '1px solid #000',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Pen
+              </button>
+              <button
+                onClick={() => setTool('eraser')}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: tool === 'eraser' ? '#000' : '#fff',
+                  color: tool === 'eraser' ? '#fff' : '#000',
+                  border: '1px solid #000',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Eraser
+              </button>
+            </div>
+          </>
+        )}
+
+        {mode === 'canvas' && (
+          <>
+            <div style={{ width: '1px', height: '24px', backgroundColor: '#ddd' }} />
+
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span style={{ fontSize: '14px', color: '#666' }}>Size:</span>
+              {strokeWidthOptions.map(size => (
+                <button
+                  key={size}
+                  onClick={() => setStrokeWidth(size)}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: strokeWidth === size ? '#000' : '#fff',
+                    color: strokeWidth === size ? '#fff' : '#000',
+                    border: '1px solid #000',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    minWidth: '32px'
+                  }}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <div style={{ marginLeft: 'auto', fontSize: '14px', color: '#666' }}>
           {directoryHandle.name}
         </div>
       </div>
 
-      {/* Canvas area */}
+      {/* Canvas/Gallery area */}
       <div
         ref={containerRef}
         style={{
@@ -405,6 +489,68 @@ function App() {
           padding: '40px'
         }}
       >
+        {mode === 'gallery' ? (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: '20px',
+            width: '100%',
+            maxWidth: '1400px',
+            alignContent: 'start',
+            gridAutoRows: 'min-content'
+          }}>
+            {savedImages.length === 0 ? (
+              <div style={{
+                gridColumn: '1 / -1',
+                textAlign: 'center',
+                padding: '60px 20px',
+                color: '#666',
+                fontSize: '16px'
+              }}>
+                No images saved yet
+              </div>
+            ) : (
+              savedImages.map((image) => (
+                <div
+                  key={image.name}
+                  style={{
+                    backgroundColor: '#fff',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    transition: 'transform 0.2s, box-shadow 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)'
+                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.15)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  }}
+                >
+                  <img
+                    src={image.url}
+                    alt={image.name}
+                    style={{
+                      width: '100%',
+                      display: 'block',
+                      backgroundColor: '#fff'
+                    }}
+                  />
+                  <div style={{
+                    padding: '12px 16px',
+                    fontSize: '13px',
+                    color: '#666',
+                    borderTop: '1px solid #eee'
+                  }}>
+                    {image.name}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
         <div style={{
           display: 'flex',
           flexDirection: 'column',
@@ -502,6 +648,8 @@ function App() {
             style={{
               width: '40px',
               height: '40px',
+              minWidth: '40px',
+              minHeight: '40px',
               backgroundColor: '#000',
               color: '#fff',
               border: 'none',
@@ -510,12 +658,14 @@ function App() {
               fontSize: '24px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              flexShrink: 0
             }}
           >
             +
           </button>
         </div>
+        )}
       </div>
 
       {/* Toast notification */}
