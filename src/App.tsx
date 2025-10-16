@@ -22,6 +22,7 @@ function App() {
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null)
   const [recentDirs, setRecentDirs] = useState<DirectoryEntry[]>([])
   const [hoveredScissorY, setHoveredScissorY] = useState<number | null>(null)
+  const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false })
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDrawing = useRef(false)
@@ -38,6 +39,13 @@ function App() {
     } catch (err) {
       console.error('Failed to load recent directories', err)
     }
+  }
+
+  const showToast = (message: string) => {
+    setToast({ message, visible: true })
+    setTimeout(() => {
+      setToast({ message: '', visible: false })
+    }, 3000)
   }
 
   // Initialize canvas with white background
@@ -191,14 +199,16 @@ function App() {
     upperCanvas.toBlob(async (blob) => {
       if (!blob) return
 
-      const now = new Date()
-      const filename = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.png`
+      const filename = generateFilename()
 
       try {
         const fileHandle = await directoryHandle.getFileHandle(filename, { create: true })
         const writable = await fileHandle.createWritable()
         await writable.write(blob)
         await writable.close()
+
+        // Show success toast
+        showToast(`Saved ${filename}`)
 
         // Keep only the lower part
         const lowerImageData = ctx.getImageData(0, y, CANVAS_WIDTH, canvasHeight - y)
@@ -227,6 +237,11 @@ function App() {
   }
 
   const strokeWidthOptions = [1, 2, 4, 8, 16, 32, 64]
+
+  const generateFilename = () => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.png`
+  }
 
   if (!directoryHandle) {
     return (
@@ -413,73 +428,72 @@ function App() {
               }}
             />
 
-            {/* Hover preview line */}
+            {/* Gray overlay for cut area */}
             {hoveredScissorY !== null && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: `${hoveredScissorY}px`,
-                  left: 0,
-                  width: `${CANVAS_WIDTH}px`,
-                  height: '1px',
-                  backgroundColor: '#999',
-                  pointerEvents: 'none',
-                  boxShadow: '0 0 4px rgba(0, 0, 0, 0.3)'
-                }}
-              />
+              <>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: `${CANVAS_WIDTH}px`,
+                    height: `${hoveredScissorY}px`,
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                    pointerEvents: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <div style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#000',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                  }}>
+                    Save as {generateFilename()}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: `${hoveredScissorY}px`,
+                    left: 0,
+                    width: `${CANVAS_WIDTH}px`,
+                    height: '2px',
+                    backgroundColor: '#000',
+                    pointerEvents: 'none',
+                    boxShadow: '0 0 4px rgba(0, 0, 0, 0.5)'
+                  }}
+                />
+              </>
             )}
 
-            {/* Scissor buttons on the right edge */}
-            <div style={{
-              position: 'absolute',
-              left: `${CANVAS_WIDTH + 16}px`,
-              top: 0,
-              height: canvasHeight,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-evenly'
-            }}>
-              {Array.from({ length: Math.ceil(canvasHeight / 100) }).map((_, i) => {
-                const y = (i + 1) * 100
-                return (
-                  <button
-                    key={i}
-                    onClick={() => handleScissorClick(y)}
-                    onMouseEnter={() => setHoveredScissorY(y)}
-                    onMouseLeave={() => setHoveredScissorY(null)}
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: 0,
-                      opacity: 0.4,
-                      transition: 'opacity 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      setHoveredScissorY(y)
-                      e.currentTarget.style.opacity = '1'
-                    }}
-                    onMouseLeave={(e) => {
-                      setHoveredScissorY(null)
-                      e.currentTarget.style.opacity = '0.4'
-                    }}
-                    title={`Cut at ${y}px`}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="6" cy="6" r="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                      <circle cx="6" cy="18" r="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                      <line x1="8" y1="6" x2="20" y2="12" stroke="currentColor" strokeWidth="1.5"/>
-                      <line x1="8" y1="18" x2="20" y2="12" stroke="currentColor" strokeWidth="1.5"/>
-                    </svg>
-                  </button>
-                )
-              })}
-            </div>
+            {/* Right edge hover area for cutting */}
+            <div
+              style={{
+                position: 'absolute',
+                right: '-40px',
+                top: 0,
+                width: '40px',
+                height: canvasHeight,
+                cursor: 'pointer'
+              }}
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const y = Math.max(50, Math.min(canvasHeight - 50, e.clientY - rect.top))
+                setHoveredScissorY(Math.round(y))
+              }}
+              onMouseLeave={() => setHoveredScissorY(null)}
+              onClick={() => {
+                if (hoveredScissorY !== null) {
+                  handleScissorClick(hoveredScissorY)
+                }
+              }}
+            />
           </div>
 
           {/* Extend button below canvas */}
@@ -503,6 +517,27 @@ function App() {
           </button>
         </div>
       </div>
+
+      {/* Toast notification */}
+      {toast.visible && (
+        <div style={{
+          position: 'fixed',
+          bottom: '32px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#000',
+          color: '#fff',
+          padding: '12px 24px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: '500',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+          zIndex: 1000,
+          animation: 'fadeIn 0.2s ease-in'
+        }}>
+          {toast.message}
+        </div>
+      )}
     </div>
   )
 }
