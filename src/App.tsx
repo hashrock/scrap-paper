@@ -62,11 +62,6 @@ function App() {
       <Toolbar
         mode={mode}
         onModeChange={setMode}
-        tool={tool}
-        onToolChange={setTool}
-        strokeWidth={strokeWidth}
-        onStrokeWidthChange={setStrokeWidth}
-        strokeWidthOptions={STROKE_WIDTH_OPTIONS}
       />
 
       <div style={{
@@ -88,6 +83,9 @@ function App() {
             directoryHandle={directoryHandle}
             tool={tool}
             strokeWidth={strokeWidth}
+            strokeWidthOptions={STROKE_WIDTH_OPTIONS}
+            onToolChange={setTool}
+            onStrokeWidthChange={setStrokeWidth}
             onImageSaved={handleImageSaved}
           />
         )}

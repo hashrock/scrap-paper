@@ -6,9 +6,6 @@ import type { Tool } from '../types'
 const INITIAL_CANVAS_HEIGHT = 1200
 const CANVAS_WIDTH = 800
 const CANVAS_EXTEND_HEIGHT = 400
-const MIN_ZOOM = 0.5
-const MAX_ZOOM = 2
-const ZOOM_STEP = 0.25
 const MAX_HISTORY = 20
 
 interface CutAnimationState {
@@ -20,6 +17,9 @@ interface CanvasWorkspaceProps {
   directoryHandle: FileSystemDirectoryHandle
   tool: Tool
   strokeWidth: number
+  strokeWidthOptions: number[]
+  onToolChange: (tool: Tool) => void
+  onStrokeWidthChange: (width: number) => void
   onImageSaved: (filename: string) => void
 }
 
@@ -37,6 +37,9 @@ const CanvasWorkspace = ({
   directoryHandle,
   tool,
   strokeWidth,
+  strokeWidthOptions,
+  onToolChange,
+  onStrokeWidthChange,
   onImageSaved
 }: CanvasWorkspaceProps) => {
   const [canvasHeight, setCanvasHeight] = useState(INITIAL_CANVAS_HEIGHT)
@@ -179,20 +182,10 @@ const CanvasWorkspace = ({
     }, 0)
   }, [canvasHeight, captureSnapshot, getCanvasContext, scheduleAutoSave])
 
-  const adjustZoom = useCallback((direction: 'in' | 'out') => {
-    setZoom((prev) => {
-      const delta = direction === 'in' ? ZOOM_STEP : -ZOOM_STEP
-      const nextZoom = prev + delta
-      const clampedZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom))
-      return Number(clampedZoom.toFixed(2))
-    })
-  }, [])
-
-  const resetZoom = useCallback(() => {
-    setZoom(1)
-  }, [])
-
-  const zoomPercentage = useMemo(() => Math.round(zoom * 100), [zoom])
+  const sliderIndex = useMemo(() => {
+    const index = strokeWidthOptions.indexOf(strokeWidth)
+    return index === -1 ? 0 : index
+  }, [strokeWidth, strokeWidthOptions])
 
   const handleUndo = useCallback(() => {
     if (historyRef.current.length === 0) {
@@ -384,337 +377,419 @@ const CanvasWorkspace = ({
     }
   }, [])
 
-  const isAtMinZoom = zoom <= MIN_ZOOM
-  const isAtMaxZoom = zoom >= MAX_ZOOM
   const scaledWidth = CANVAS_WIDTH * zoom
   const scaledHeight = canvasHeight * zoom
+  const panelWidth = Math.min(CANVAS_WIDTH + 160, Math.max(360, scaledWidth))
+  const bottomPadding = Math.max(160, Math.round(120 * zoom))
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: '16px'
-    }}>
-      <div
-        style={{
-          width: '100%',
-          maxWidth: `${CANVAS_WIDTH + 120}px`,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '16px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={() => adjustZoom('out')}
-            disabled={isAtMinZoom}
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '16px',
-              border: '1px solid #ddd',
-              backgroundColor: '#fff',
-              cursor: isAtMinZoom ? 'not-allowed' : 'pointer',
-              fontSize: '18px',
-              lineHeight: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: isAtMinZoom ? 0.4 : 1
-            }}
-            title="Zoom out"
-          >
-            -
-          </button>
-          <button
-            type="button"
-            onClick={resetZoom}
-            disabled={zoom === 1}
-            style={{
-              minWidth: '72px',
-              padding: '0 12px',
-              height: '32px',
-              borderRadius: '16px',
-              border: '1px solid #ddd',
-              backgroundColor: '#fff',
-              cursor: zoom === 1 ? 'default' : 'pointer',
-              fontSize: '14px',
-              fontWeight: 500,
-              opacity: zoom === 1 ? 0.6 : 1,
-              fontVariantNumeric: 'tabular-nums'
-            }}
-            title={zoom === 1 ? 'Current zoom' : 'Reset zoom to 100%'}
-          >
-            {zoomPercentage}%
-          </button>
-          <button
-            type="button"
-            onClick={() => adjustZoom('in')}
-            disabled={isAtMaxZoom}
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '16px',
-              border: '1px solid #ddd',
-              backgroundColor: '#fff',
-              cursor: isAtMaxZoom ? 'not-allowed' : 'pointer',
-              fontSize: '18px',
-              lineHeight: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: isAtMaxZoom ? 0.4 : 1
-            }}
-            title="Zoom in"
-          >
-            +
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={handleUndo}
-            disabled={!canUndo}
-            style={{
-              minWidth: '72px',
-              padding: '0 16px',
-              height: '32px',
-              borderRadius: '16px',
-              border: '1px solid #ddd',
-              backgroundColor: '#fff',
-              cursor: canUndo ? 'pointer' : 'not-allowed',
-              fontSize: '14px',
-              fontWeight: 500,
-              opacity: canUndo ? 1 : 0.4
-            }}
-            title="Undo last change"
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            onClick={handleClear}
-            style={{
-              minWidth: '72px',
-              padding: '0 16px',
-              height: '32px',
-              borderRadius: '16px',
-              border: '1px solid #f87171',
-              backgroundColor: '#fff5f5',
-              color: '#dc2626',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 500
-            }}
-            title="Clear the canvas"
-          >
-            Clear
-          </button>
-          <button
-            type="button"
-            onClick={extendCanvas}
-            style={{
-              padding: '0 16px',
-              height: '32px',
-              borderRadius: '16px',
-              border: 'none',
-              backgroundColor: '#000',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 600
-            }}
-            title="Extend the canvas"
-          >
-            Extend
-          </button>
-        </div>
-      </div>
-
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        paddingTop: '72px',
+        paddingBottom: `${bottomPadding}px`
+      }}
+    >
       <div
         style={{
           position: 'relative',
           width: `${scaledWidth}px`,
-          height: `${scaledHeight}px`,
-          overflow: 'visible'
+          maxWidth: '100%'
         }}
       >
         <div
           style={{
-            position: 'relative',
-            width: `${CANVAS_WIDTH}px`,
-            height: `${canvasHeight}px`,
-            transform: `scale(${zoom})`,
-            transformOrigin: 'top left'
+            position: 'absolute',
+            top: '-76px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '18px',
+            padding: '12px 20px',
+            width: `${panelWidth}px`,
+            maxWidth: 'calc(100vw - 96px)'
           }}
         >
-          <svg
-            width={CANVAS_WIDTH}
-            height="20"
-            viewBox={`0 0 ${CANVAS_WIDTH} 20`}
-            style={{
-              position: 'absolute',
-              top: '-20px',
-              left: 0,
-              zIndex: 1
-            }}
-            preserveAspectRatio="none"
-          >
-            <path
-              d={tornEdgePath}
-              fill="#fff"
-              stroke="#ddd"
-              strokeWidth="1"
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => onToolChange('pen')}
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '50%',
+                border: '1px solid rgba(17, 24, 39, 0.08)',
+                backgroundColor: tool === 'pen' ? '#111' : 'rgba(255, 255, 255, 0.6)',
+                color: tool === 'pen' ? '#fff' : '#111',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              title="Pen"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                <path d="M2 2l7.586 7.586" />
+                <circle cx="11" cy="11" r="2" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => onToolChange('eraser')}
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '50%',
+                border: '1px solid rgba(17, 24, 39, 0.08)',
+                backgroundColor: tool === 'eraser' ? '#111' : 'rgba(255, 255, 255, 0.6)',
+                color: tool === 'eraser' ? '#fff' : '#111',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              title="Eraser"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 20H7L2.5 15.5a2 2 0 0 1 0-2.83L12.71 2.46a2 2 0 0 1 2.83 0L21.54 8.5a2 2 0 0 1 0 2.83L16 17" />
+                <path d="M7 20v-4" />
+              </svg>
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <input
+              className="mono-slider"
+              type="range"
+              min="0"
+              max={(strokeWidthOptions.length - 1).toString()}
+              value={sliderIndex}
+              onChange={(event) => {
+                const index = parseInt(event.target.value, 10)
+                const nextWidth = strokeWidthOptions[index] ?? strokeWidthOptions[0]
+                onStrokeWidthChange(nextWidth)
+              }}
+              style={{ width: '148px' }}
             />
-          </svg>
+            <div style={{
+              minWidth: '38px',
+              textAlign: 'right',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#111',
+              fontVariantNumeric: 'tabular-nums'
+            }}>
+              {strokeWidth}px
+            </div>
+          </div>
 
-          <canvas
-            ref={canvasRef}
-            width={CANVAS_WIDTH}
-            height={canvasHeight}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={finalizeStroke}
-            onMouseLeave={finalizeStroke}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: '999px',
+              border: '1px solid rgba(17, 24, 39, 0.12)',
+              backgroundColor: 'rgba(255, 255, 255, 0.6)',
+              overflow: 'hidden'
+            }}>
+              <button
+                type="button"
+                onClick={() => setZoom((prev) => Math.max(0.5, Number((prev - 0.25).toFixed(2))))}
+                style={{
+                  width: '40px',
+                  padding: '6px 0',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  color: '#111',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  lineHeight: 1
+                }}
+              >
+                -
+              </button>
+              <div
+                onClick={() => setZoom(1)}
+                style={{
+                  minWidth: '58px',
+                  textAlign: 'center',
+                  padding: '6px 0',
+                  borderLeft: '1px solid rgba(17, 24, 39, 0.08)',
+                  borderRight: '1px solid rgba(17, 24, 39, 0.08)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#111',
+                  fontVariantNumeric: 'tabular-nums',
+                  cursor: Math.abs(zoom - 1) < 0.001 ? 'default' : 'pointer',
+                  opacity: Math.abs(zoom - 1) < 0.001 ? 0.6 : 1
+                }}
+                title={Math.abs(zoom - 1) < 0.001 ? 'Zoom is 100%' : 'Reset zoom to 100%'}
+              >
+                {Math.round(zoom * 100)}%
+              </div>
+              <button
+                type="button"
+                onClick={() => setZoom((prev) => Math.min(2, Number((prev + 0.25).toFixed(2))))}
+                style={{
+                  width: '40px',
+                  padding: '6px 0',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  color: '#111',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  lineHeight: 1
+                }}
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: '#111',
+                cursor: canUndo ? 'pointer' : 'not-allowed',
+                opacity: canUndo ? 0.85 : 0.3,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'opacity 0.2s ease'
+              }}
+              title="Undo"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 5H5v4" />
+                <path d="M4 9a8 8 0 1 1 2.37 5.66" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={handleClear}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: '#111',
+                cursor: 'pointer',
+                opacity: 0.85,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'opacity 0.2s ease'
+              }}
+              title="Clear canvas"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="5" y="4" width="14" height="16" rx="1.5" />
+                <path d="M9 9l6 6" />
+                <path d="M15 9l-6 6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div
+          style={{
+            position: 'relative',
+            width: `${scaledWidth}px`,
+            height: `${scaledHeight}px`,
+            overflow: 'visible'
+          }}
+        >
+          <div
             style={{
-              border: '1px solid #ddd',
-              cursor: 'crosshair',
-              display: 'block',
-              backgroundColor: '#fff'
+              position: 'relative',
+              width: `${CANVAS_WIDTH}px`,
+              height: `${canvasHeight}px`,
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left'
             }}
-          />
-
-          {cutAnimation && (
-            <div
+          >
+            <svg
+              width={CANVAS_WIDTH}
+              height="20"
+              viewBox={`0 0 ${CANVAS_WIDTH} 20`}
               style={{
                 position: 'absolute',
-                top: 0,
+                top: '-20px',
                 left: 0,
-                width: `${CANVAS_WIDTH}px`,
-                height: `${cutAnimation.height}px`,
-                pointerEvents: 'none',
-                animation: 'slideUp 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards',
-                zIndex: 100
+                zIndex: 1,
+                pointerEvents: 'none'
               }}
+              preserveAspectRatio="none"
             >
-              <img
-                src={cutAnimation.imageUrl}
-                alt="Cut animation"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'block',
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
-                }}
+              <path
+                d={tornEdgePath}
+                fill="#fff"
+                stroke="#ddd"
+                strokeWidth="1"
               />
-            </div>
-          )}
+            </svg>
 
-          {hoveredScissorY !== null && !cutAnimation && (
-            <>
+            <canvas
+              ref={canvasRef}
+              width={CANVAS_WIDTH}
+              height={canvasHeight}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={finalizeStroke}
+              onMouseLeave={finalizeStroke}
+              style={{
+                border: '1px solid #ddd',
+                cursor: 'crosshair',
+                display: 'block',
+                backgroundColor: '#fff'
+              }}
+            />
+
+            {cutAnimation && (
               <div
                 style={{
                   position: 'absolute',
                   top: 0,
                   left: 0,
                   width: `${CANVAS_WIDTH}px`,
-                  height: `${hoveredScissorY}px`,
-                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  height: `${cutAnimation.height}px`,
                   pointerEvents: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  animation: 'slideUp 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards',
+                  zIndex: 100
                 }}
               >
-                <div style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#000',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-                }}>
-                  Save as {generateFilename()}
-                </div>
-              </div>
-              <div
-                style={{
-                  position: 'absolute',
-                  top: `${hoveredScissorY}px`,
-                  left: 0,
-                  width: `${CANVAS_WIDTH}px`,
-                  height: '2px',
-                  backgroundColor: '#000',
-                  pointerEvents: 'none',
-                  boxShadow: '0 0 4px rgba(0, 0, 0, 0.5)'
-                }}
-              />
-            </>
-          )}
-
-          <svg
-            width="40"
-            height={canvasHeight}
-            viewBox={`0 0 40 ${canvasHeight}`}
-            style={{
-              position: 'absolute',
-              right: '-40px',
-              top: 0,
-              pointerEvents: 'none'
-            }}
-          >
-            {Array.from({ length: Math.floor(canvasHeight / 10) + 1 }).map((_, i) => {
-              const y = i * 10
-              const isMajor = i % 10 === 0
-              const isMedium = i % 5 === 0
-              const lineWidth = isMajor ? 20 : isMedium ? 12 : 6
-              const opacity = isMajor ? 0.5 : isMedium ? 0.35 : 0.25
-
-              return (
-                <line
-                  key={y}
-                  x1="0"
-                  y1={y}
-                  x2={lineWidth}
-                  y2={y}
-                  stroke="#999"
-                  strokeWidth="1"
-                  opacity={opacity}
+                <img
+                  src={cutAnimation.imageUrl}
+                  alt="Cut animation"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'block',
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+                  }}
                 />
-              )
-            })}
-          </svg>
+              </div>
+            )}
 
-          <div
-            style={{
-              position: 'absolute',
-              right: '-40px',
-              top: 0,
-              width: '40px',
-              height: canvasHeight,
-              cursor: 'pointer'
-            }}
-            onMouseMove={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect()
-              const relativeY = (event.clientY - rect.top) / zoom
-              const clampedY = Math.max(50, Math.min(canvasHeight - 50, relativeY))
-              setHoveredScissorY(Math.round(clampedY))
-            }}
-            onMouseLeave={() => setHoveredScissorY(null)}
-            onClick={() => {
-              if (hoveredScissorY !== null) {
-                handleScissorClick(hoveredScissorY)
-              }
-            }}
-          />
+            {hoveredScissorY !== null && !cutAnimation && (
+              <>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: `${CANVAS_WIDTH}px`,
+                    height: `${hoveredScissorY}px`,
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                    pointerEvents: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <div style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#000',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                  }}>
+                    Save as {generateFilename()}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: `${hoveredScissorY}px`,
+                    left: 0,
+                    width: `${CANVAS_WIDTH}px`,
+                    height: '2px',
+                    backgroundColor: '#000',
+                    pointerEvents: 'none',
+                    boxShadow: '0 0 4px rgba(0, 0, 0, 0.5)'
+                  }}
+                />
+              </>
+            )}
+
+            <svg
+              width="40"
+              height={canvasHeight}
+              viewBox={`0 0 40 ${canvasHeight}`}
+              style={{
+                position: 'absolute',
+                right: '-40px',
+                top: 0,
+                pointerEvents: 'none'
+              }}
+            >
+              {Array.from({ length: Math.floor(canvasHeight / 10) + 1 }).map((_, i) => {
+                const y = i * 10
+                const isMajor = i % 10 === 0
+                const isMedium = i % 5 === 0
+                const lineWidth = isMajor ? 20 : isMedium ? 12 : 6
+                const opacity = isMajor ? 0.5 : isMedium ? 0.35 : 0.25
+
+                return (
+                  <line
+                    key={y}
+                    x1="0"
+                    y1={y}
+                    x2={lineWidth}
+                    y2={y}
+                    stroke="#999"
+                    strokeWidth="1"
+                    opacity={opacity}
+                  />
+                )
+              })}
+            </svg>
+
+            <div
+              style={{
+                position: 'absolute',
+                right: '-40px',
+                top: 0,
+                width: '40px',
+                height: canvasHeight,
+                cursor: 'pointer'
+              }}
+              onMouseMove={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect()
+                const relativeY = (event.clientY - rect.top) / zoom
+                const clampedY = Math.max(50, Math.min(canvasHeight - 50, relativeY))
+                setHoveredScissorY(Math.round(clampedY))
+              }}
+              onMouseLeave={() => setHoveredScissorY(null)}
+              onClick={() => {
+                if (hoveredScissorY !== null) {
+                  handleScissorClick(hoveredScissorY)
+                }
+              }}
+            />
+          </div>
         </div>
       </div>
-
     </div>
   )
 }
