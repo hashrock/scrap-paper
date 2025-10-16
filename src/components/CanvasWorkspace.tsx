@@ -389,7 +389,7 @@ const CanvasWorkspace = ({
         flexDirection: 'column',
         alignItems: 'center',
         paddingTop: '72px',
-        paddingBottom: `${bottomPadding}px`
+        paddingBottom: `calc(${bottomPadding}px + 4rem)`
       }}
     >
       <div
@@ -489,69 +489,6 @@ const CanvasWorkspace = ({
               fontVariantNumeric: 'tabular-nums'
             }}>
               {strokeWidth}px
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              borderRadius: '999px',
-              border: '1px solid rgba(17, 24, 39, 0.12)',
-              backgroundColor: 'rgba(255, 255, 255, 0.6)',
-              overflow: 'hidden'
-            }}>
-              <button
-                type="button"
-                onClick={() => setZoom((prev) => Math.max(0.5, Number((prev - 0.25).toFixed(2))))}
-                style={{
-                  width: '40px',
-                  padding: '6px 0',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: '#111',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  lineHeight: 1
-                }}
-              >
-                -
-              </button>
-              <div
-                onClick={() => setZoom(1)}
-                style={{
-                  minWidth: '58px',
-                  textAlign: 'center',
-                  padding: '6px 0',
-                  borderLeft: '1px solid rgba(17, 24, 39, 0.08)',
-                  borderRight: '1px solid rgba(17, 24, 39, 0.08)',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: '#111',
-                  fontVariantNumeric: 'tabular-nums',
-                  cursor: Math.abs(zoom - 1) < 0.001 ? 'default' : 'pointer',
-                  opacity: Math.abs(zoom - 1) < 0.001 ? 0.6 : 1
-                }}
-                title={Math.abs(zoom - 1) < 0.001 ? 'Zoom is 100%' : 'Reset zoom to 100%'}
-              >
-                {Math.round(zoom * 100)}%
-              </div>
-              <button
-                type="button"
-                onClick={() => setZoom((prev) => Math.min(2, Number((prev + 0.25).toFixed(2))))}
-                style={{
-                  width: '40px',
-                  padding: '6px 0',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: '#111',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  lineHeight: 1
-                }}
-              >
-                +
-              </button>
             </div>
           </div>
 
@@ -789,7 +726,91 @@ const CanvasWorkspace = ({
             />
           </div>
         </div>
+
+      <div
+        style={{
+          position: 'fixed',
+          right: '32px',
+          bottom: '32px',
+          display: 'flex',
+          alignItems: 'center',
+          zIndex: 100
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            borderRadius: '999px',
+              border: '1px solid rgba(17, 24, 39, 0.12)',
+              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+              overflow: 'hidden'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setZoom((prev) => {
+                const next = Number((prev - 0.25).toFixed(2))
+                return Math.max(0.5, next)
+              })}
+              style={{
+                width: '40px',
+                padding: '6px 0',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: '#111',
+                cursor: 'pointer',
+                fontSize: '16px',
+                lineHeight: 1
+              }}
+              title="Zoom out"
+            >
+              -
+            </button>
+            <div
+              onClick={() => setZoom(1)}
+              style={{
+                minWidth: '58px',
+                textAlign: 'center',
+                padding: '6px 0',
+                borderLeft: '1px solid rgba(17, 24, 39, 0.08)',
+                borderRight: '1px solid rgba(17, 24, 39, 0.08)',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#111',
+                fontVariantNumeric: 'tabular-nums',
+                cursor: Math.abs(zoom - 1) < 0.001 ? 'default' : 'pointer',
+                opacity: Math.abs(zoom - 1) < 0.001 ? 0.6 : 1
+              }}
+              title={Math.abs(zoom - 1) < 0.001 ? 'Zoom is 100%' : 'Reset zoom to 100%'}
+            >
+              {Math.round(zoom * 100)}%
+            </div>
+            <button
+              type="button"
+              onClick={() => setZoom((prev) => {
+                const next = Number((prev + 0.25).toFixed(2))
+                return Math.min(2, next)
+              })}
+              style={{
+                width: '40px',
+                padding: '6px 0',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: '#111',
+                cursor: 'pointer',
+                fontSize: '16px',
+                lineHeight: 1
+              }}
+              title="Zoom in"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
       </div>
+
     </div>
   )
 }
