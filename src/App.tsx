@@ -122,6 +122,37 @@ function App() {
           >
             Select folder
           </button>
+          {recentDirs.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>Recent folders</div>
+              {recentDirs.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => { void selectRecentDirectory(entry) }}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    backgroundColor: 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    fontSize: '12px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'
+                  }}
+                >
+                  {entry.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
