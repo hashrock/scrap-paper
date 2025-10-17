@@ -13,14 +13,21 @@ interface CutAnimationState {
   height: number
 }
 
+interface KeyboardShortcuts {
+  pen: string
+  eraser: string
+}
+
 interface CanvasWorkspaceProps {
   directoryHandle: FileSystemDirectoryHandle | null
   tool: Tool
   strokeWidth: number
   strokeWidthOptions: number[]
+  shortcuts: KeyboardShortcuts
   onToolChange: (tool: Tool) => void
   onStrokeWidthChange: (width: number) => void
   onImageSaved: (filename: string) => void
+  onSettingsClick: () => void
 }
 
 interface CanvasSnapshot {
@@ -38,9 +45,11 @@ const CanvasWorkspace = ({
   tool,
   strokeWidth,
   strokeWidthOptions,
+  shortcuts,
   onToolChange,
   onStrokeWidthChange,
-  onImageSaved
+  onImageSaved,
+  onSettingsClick
 }: CanvasWorkspaceProps) => {
   const [canvasHeight, setCanvasHeight] = useState(INITIAL_CANVAS_HEIGHT)
   const [zoom, setZoom] = useState(1)
@@ -379,10 +388,95 @@ const CanvasWorkspace = ({
     }
   }, [])
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ignore if user is typing in an input field
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      // Tool switching
+      if (event.key === shortcuts.pen) {
+        event.preventDefault()
+        onToolChange('pen')
+        return
+      }
+
+      if (event.key === shortcuts.eraser) {
+        event.preventDefault()
+        onToolChange('eraser')
+        return
+      }
+
+      // Undo
+      if ((event.metaKey || event.ctrlKey) && event.key === 'z') {
+        event.preventDefault()
+        handleUndo()
+        return
+      }
+
+      // Zoom controls
+      if (event.key === '+' || event.key === '=') {
+        event.preventDefault()
+        setZoom((prev) => {
+          const next = Number((prev + 0.25).toFixed(2))
+          return Math.min(2, next)
+        })
+        return
+      }
+
+      if (event.key === '-' || event.key === '_') {
+        event.preventDefault()
+        setZoom((prev) => {
+          const next = Number((prev - 0.25).toFixed(2))
+          return Math.max(0.5, next)
+        })
+        return
+      }
+
+      if (event.key === '0') {
+        event.preventDefault()
+        setZoom(1)
+        return
+      }
+
+      // Stroke width controls
+      if (event.key === '[') {
+        event.preventDefault()
+        const currentIndex = strokeWidthOptions.indexOf(strokeWidth)
+        if (currentIndex > 0) {
+          onStrokeWidthChange(strokeWidthOptions[currentIndex - 1])
+        }
+        return
+      }
+
+      if (event.key === ']') {
+        event.preventDefault()
+        const currentIndex = strokeWidthOptions.indexOf(strokeWidth)
+        if (currentIndex < strokeWidthOptions.length - 1) {
+          onStrokeWidthChange(strokeWidthOptions[currentIndex + 1])
+        }
+        return
+      }
+
+      // Toggle settings
+      if (event.key === '?') {
+        event.preventDefault()
+        onSettingsClick()
+        return
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [handleUndo, onSettingsClick, onToolChange, onStrokeWidthChange, shortcuts, strokeWidth, strokeWidthOptions])
+
   const scaledWidth = CANVAS_WIDTH * zoom
   const scaledHeight = canvasHeight * zoom
   const panelWidth = Math.min(CANVAS_WIDTH + 160, Math.max(360, scaledWidth))
-  const bottomPadding = Math.max(160, Math.round(120 * zoom))
+  const bottomPadding = 0
   const canSave = Boolean(directoryHandle)
 
   useEffect(() => {
@@ -398,7 +492,7 @@ const CanvasWorkspace = ({
         flexDirection: 'column',
         alignItems: 'center',
         paddingTop: '72px',
-        paddingBottom: `calc(${bottomPadding}px + 4rem)`
+        paddingBottom: `${bottomPadding}px`
       }}
     >
       <div

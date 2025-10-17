@@ -1,8 +1,10 @@
+import { Settings } from 'lucide-react'
 import type { Mode } from '../types'
 
 interface ToolbarProps {
   mode: Mode
   onModeChange: (mode: Mode) => void
+  onSettingsClick: () => void
 }
 
 const tabs: Array<{ id: Mode; label: string }> = [
@@ -10,7 +12,7 @@ const tabs: Array<{ id: Mode; label: string }> = [
   { id: 'gallery', label: 'Gallery' }
 ]
 
-const Toolbar = ({ mode, onModeChange }: ToolbarProps) => {
+const Toolbar = ({ mode, onModeChange, onSettingsClick }: ToolbarProps) => {
   return (
     <div
       style={{
@@ -25,7 +27,8 @@ const Toolbar = ({ mode, onModeChange }: ToolbarProps) => {
           margin: '0 auto',
           padding: '12px 24px 0',
           display: 'flex',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          position: 'relative'
         }}
       >
         <div
@@ -79,6 +82,38 @@ const Toolbar = ({ mode, onModeChange }: ToolbarProps) => {
             )
           })}
         </div>
+        <button
+          type="button"
+          onClick={onSettingsClick}
+          style={{
+            position: 'absolute',
+            right: '24px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '36px',
+            height: '36px',
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: 'transparent',
+            color: '#6b7280',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#f3f4f6'
+            e.currentTarget.style.color = '#111'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent'
+            e.currentTarget.style.color = '#6b7280'
+          }}
+          title="Settings"
+        >
+          <Settings size={20} />
+        </button>
       </div>
     </div>
   )

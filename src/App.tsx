@@ -4,22 +4,53 @@ import Toolbar from './components/Toolbar'
 import CanvasWorkspace from './components/CanvasWorkspace'
 import GalleryView from './components/GalleryView'
 import Toast from './components/Toast'
+import SettingsPanel from './components/SettingsPanel'
+import Footer from './components/Footer'
 import useDirectoryManager from './hooks/useDirectoryManager'
 import useSavedImages from './hooks/useSavedImages'
 import useToast from './hooks/useToast'
 import type { Mode, Tool } from './types'
 
 const STROKE_WIDTH_OPTIONS = [1, 2, 4, 8, 16, 32, 64]
+const SHORTCUTS_STORAGE_KEY = 'canvas-keyboard-shortcuts'
+
+interface KeyboardShortcuts {
+  pen: string
+  eraser: string
+}
+
+const DEFAULT_SHORTCUTS: KeyboardShortcuts = {
+  pen: 'p',
+  eraser: 'e'
+}
 
 function App() {
   const [mode, setMode] = useState<Mode>('canvas')
   const [tool, setTool] = useState<Tool>('pen')
   const [strokeWidth, setStrokeWidth] = useState(4)
+  const [showSettings, setShowSettings] = useState(false)
+  const [shortcuts, setShortcuts] = useState<KeyboardShortcuts>(() => {
+    const stored = localStorage.getItem(SHORTCUTS_STORAGE_KEY)
+    if (stored) {
+      try {
+        return { ...DEFAULT_SHORTCUTS, ...JSON.parse(stored) }
+      } catch {
+        return DEFAULT_SHORTCUTS
+      }
+    }
+    return DEFAULT_SHORTCUTS
+  })
 
   const { directoryHandle, recentDirs, selectNewDirectory, selectRecentDirectory } = useDirectoryManager()
   const { toast, showToast } = useToast()
   const { savedImages, reloadSavedImages } = useSavedImages(directoryHandle)
   const hasDirectory = Boolean(directoryHandle)
+
+  const handleShortcutChange = useCallback((key: keyof KeyboardShortcuts, value: string) => {
+    const newShortcuts = { ...shortcuts, [key]: value }
+    setShortcuts(newShortcuts)
+    localStorage.setItem(SHORTCUTS_STORAGE_KEY, JSON.stringify(newShortcuts))
+  }, [shortcuts])
 
   useEffect(() => {
     if (mode === 'gallery') {
@@ -42,8 +73,7 @@ function App() {
 
   return (
     <div style={{
-      width: '100vw',
-      height: '100vh',
+      minHeight: '100vh',
       backgroundColor: '#fff',
       display: 'flex',
       flexDirection: 'column',
@@ -52,6 +82,7 @@ function App() {
       <Toolbar
         mode={mode}
         onModeChange={setMode}
+        onSettingsClick={() => setShowSettings(true)}
       />
 
       {!hasDirectory && (
@@ -91,32 +122,35 @@ function App() {
               Select folder
             </button>
             {recentDirs.length > 0 && (
-              <select
-                defaultValue=""
-                onChange={(event) => {
-                  const selectedId = event.currentTarget.value
-                  if (!selectedId) return
-                  const entry = recentDirs.find((dir) => dir.id === selectedId)
-                  if (entry) {
-                    void selectRecentDirectory(entry)
-                  }
-                  event.currentTarget.value = ''
-                }}
-                style={{
-                  padding: '8px 10px',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  color: '#fff',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="" disabled>Open recent…</option>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>Recent folders</div>
                 {recentDirs.map((entry) => (
-                  <option key={entry.id} value={entry.id}>{entry.name}</option>
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => { void selectRecentDirectory(entry) }}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      fontSize: '12px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'
+                    }}
+                  >
+                    {entry.name}
+                  </button>
                 ))}
-              </select>
+              </div>
             )}
           </div>
         </div>
@@ -124,7 +158,6 @@ function App() {
 
       <div style={{
         flex: 1,
-        overflow: 'auto',
         backgroundColor: '#f5f5f5',
         display: 'flex',
         justifyContent: 'center',
@@ -200,16 +233,27 @@ function App() {
             tool={tool}
             strokeWidth={strokeWidth}
             strokeWidthOptions={STROKE_WIDTH_OPTIONS}
+            shortcuts={shortcuts}
             onToolChange={setTool}
             onStrokeWidthChange={setStrokeWidth}
             onImageSaved={handleImageSaved}
+            onSettingsClick={() => setShowSettings(true)}
           />
         )}
       </div>
 
+      <Footer />
+
       {toast.visible && (
         <Toast message={toast.message} />
       )}
+
+      <SettingsPanel
+        visible={showSettings}
+        shortcuts={shortcuts}
+        onClose={() => setShowSettings(false)}
+        onShortcutChange={handleShortcutChange}
+      />
     </div>
   )
 }
