@@ -14,7 +14,7 @@ interface CutAnimationState {
 }
 
 interface CanvasWorkspaceProps {
-  directoryHandle: FileSystemDirectoryHandle
+  directoryHandle: FileSystemDirectoryHandle | null
   tool: Tool
   strokeWidth: number
   strokeWidthOptions: number[]
@@ -273,6 +273,8 @@ const CanvasWorkspace = ({
   }, [extendCanvas, scheduleAutoSave])
 
   const handleScissorClick = useCallback(async (y: number) => {
+    if (!directoryHandle) return
+
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -381,6 +383,13 @@ const CanvasWorkspace = ({
   const scaledHeight = canvasHeight * zoom
   const panelWidth = Math.min(CANVAS_WIDTH + 160, Math.max(360, scaledWidth))
   const bottomPadding = Math.max(160, Math.round(120 * zoom))
+  const canSave = Boolean(directoryHandle)
+
+  useEffect(() => {
+    if (!canSave && hoveredScissorY !== null) {
+      setHoveredScissorY(null)
+    }
+  }, [canSave, hoveredScissorY])
 
   return (
     <div
@@ -626,7 +635,7 @@ const CanvasWorkspace = ({
               </div>
             )}
 
-            {hoveredScissorY !== null && !cutAnimation && (
+            {canSave && hoveredScissorY !== null && !cutAnimation && (
               <>
                 <div
                   style={{
@@ -669,61 +678,65 @@ const CanvasWorkspace = ({
               </>
             )}
 
-            <svg
-              width="40"
-              height={canvasHeight}
-              viewBox={`0 0 40 ${canvasHeight}`}
-              style={{
-                position: 'absolute',
-                right: '-40px',
-                top: 0,
-                pointerEvents: 'none'
-              }}
-            >
-              {Array.from({ length: Math.floor(canvasHeight / 10) + 1 }).map((_, i) => {
-                const y = i * 10
-                const isMajor = i % 10 === 0
-                const isMedium = i % 5 === 0
-                const lineWidth = isMajor ? 20 : isMedium ? 12 : 6
-                const opacity = isMajor ? 0.5 : isMedium ? 0.35 : 0.25
+            {canSave && (
+              <>
+                <svg
+                  width="40"
+                  height={canvasHeight}
+                  viewBox={`0 0 40 ${canvasHeight}`}
+                  style={{
+                    position: 'absolute',
+                    right: '-40px',
+                    top: 0,
+                    pointerEvents: 'none'
+                  }}
+                >
+                  {Array.from({ length: Math.floor(canvasHeight / 10) + 1 }).map((_, i) => {
+                    const y = i * 10
+                    const isMajor = i % 10 === 0
+                    const isMedium = i % 5 === 0
+                    const lineWidth = isMajor ? 20 : isMedium ? 12 : 6
+                    const opacity = isMajor ? 0.5 : isMedium ? 0.35 : 0.25
 
-                return (
-                  <line
-                    key={y}
-                    x1="0"
-                    y1={y}
-                    x2={lineWidth}
-                    y2={y}
-                    stroke="#999"
-                    strokeWidth="1"
-                    opacity={opacity}
-                  />
-                )
-              })}
-            </svg>
+                    return (
+                      <line
+                        key={y}
+                        x1="0"
+                        y1={y}
+                        x2={lineWidth}
+                        y2={y}
+                        stroke="#999"
+                        strokeWidth="1"
+                        opacity={opacity}
+                      />
+                    )
+                  })}
+                </svg>
 
-            <div
-              style={{
-                position: 'absolute',
-                right: '-40px',
-                top: 0,
-                width: '40px',
-                height: canvasHeight,
-                cursor: 'pointer'
-              }}
-              onMouseMove={(event) => {
-                const rect = event.currentTarget.getBoundingClientRect()
-                const relativeY = (event.clientY - rect.top) / zoom
-                const clampedY = Math.max(50, Math.min(canvasHeight - 50, relativeY))
-                setHoveredScissorY(Math.round(clampedY))
-              }}
-              onMouseLeave={() => setHoveredScissorY(null)}
-              onClick={() => {
-                if (hoveredScissorY !== null) {
-                  handleScissorClick(hoveredScissorY)
-                }
-              }}
-            />
+                <div
+                  style={{
+                    position: 'absolute',
+                    right: '-40px',
+                    top: 0,
+                    width: '40px',
+                    height: canvasHeight,
+                    cursor: 'pointer'
+                  }}
+                  onMouseMove={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    const relativeY = (event.clientY - rect.top) / zoom
+                    const clampedY = Math.max(50, Math.min(canvasHeight - 50, relativeY))
+                    setHoveredScissorY(Math.round(clampedY))
+                  }}
+                  onMouseLeave={() => setHoveredScissorY(null)}
+                  onClick={() => {
+                    if (hoveredScissorY !== null) {
+                      handleScissorClick(hoveredScissorY)
+                    }
+                  }}
+                />
+              </>
+            )}
           </div>
         </div>
 
