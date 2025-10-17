@@ -233,6 +233,9 @@ const CanvasWorkspace = ({
     const canvas = canvasRef.current
     if (!canvas) return
 
+    // Capture pointer to ensure events continue even if pointer moves outside canvas
+    canvas.setPointerCapture(event.pointerId)
+
     const rect = canvas.getBoundingClientRect()
     const x = (event.clientX - rect.left) / (zoom * responsiveScale)
     const y = (event.clientY - rect.top) / (zoom * responsiveScale)
@@ -286,6 +289,10 @@ const CanvasWorkspace = ({
 
   const handlePointerUp = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     event.preventDefault()
+    const canvas = canvasRef.current
+    if (canvas && canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId)
+    }
     finalizeStroke()
   }, [finalizeStroke])
 
