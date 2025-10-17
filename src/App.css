@@ -76,3 +76,17 @@ body {
   height: 4px;
   border-radius: 9999px;
 }
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Prevent text selection during drawing on mobile */
+  canvas {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}

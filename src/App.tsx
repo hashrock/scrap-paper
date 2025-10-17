@@ -89,70 +89,39 @@ function App() {
         <div
           style={{
             position: 'fixed',
-            top: '88px',
-            right: '32px',
+            bottom: '80px',
+            left: '16px',
             backgroundColor: '#111',
             color: '#fff',
-            padding: '18px 24px',
-            borderRadius: '16px',
-            boxShadow: '0 24px 48px rgba(15, 23, 42, 0.25)',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            boxShadow: '0 8px 24px rgba(15, 23, 42, 0.2)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px',
-            maxWidth: '320px',
-            zIndex: 150
+            gap: '10px',
+            maxWidth: '280px',
+            zIndex: 150,
+            fontSize: '13px'
           }}
         >
-          <div style={{ fontSize: '14px', fontWeight: 600 }}>No folder selected</div>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', lineHeight: 1.4 }}>Drawings stay local to this session. Choose a folder to enable autosave, cutting, and the gallery.</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={() => { void selectNewDirectory() }}
-              style={{
-                padding: '10px 14px',
-                borderRadius: '10px',
-                border: 'none',
-                backgroundColor: '#fff',
-                color: '#111',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Select folder
-            </button>
-            {recentDirs.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>Recent folders</div>
-                {recentDirs.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => { void selectRecentDirectory(entry) }}
-                    style={{
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      backgroundColor: 'rgba(255,255,255,0.08)',
-                      color: '#fff',
-                      fontSize: '12px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)'
-                    }}
-                  >
-                    {entry.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <div style={{ fontSize: '13px', fontWeight: 600 }}>No folder selected</div>
+          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.3 }}>Choose a folder to enable autosave and gallery.</div>
+          <button
+            type="button"
+            onClick={() => { void selectNewDirectory() }}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: '#fff',
+              color: '#111',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Select folder
+          </button>
         </div>
       )}
 
@@ -161,7 +130,7 @@ function App() {
         backgroundColor: '#f5f5f5',
         display: 'flex',
         justifyContent: 'center',
-        padding: '40px'
+        padding: '40px 20px'
       }}>
         {mode === 'gallery' ? (
           hasDirectory ? (
