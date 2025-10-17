@@ -161,7 +161,7 @@ function App() {
         backgroundColor: '#f5f5f5',
         display: 'flex',
         justifyContent: 'center',
-        padding: '40px 20px'
+        padding: mode === 'gallery' && hasDirectory ? '0' : '40px 20px'
       }}>
         {mode === 'gallery' ? (
           hasDirectory ? (

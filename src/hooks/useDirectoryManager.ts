@@ -28,7 +28,7 @@ const useDirectoryManager = (): UseDirectoryManagerResult => {
 
   const selectNewDirectory = useCallback(async () => {
     try {
-      const handle = await window.showDirectoryPicker()
+      const handle = await window.showDirectoryPicker({ mode: 'readwrite' })
       await saveDirectoryHandle(handle)
       setDirectoryHandle(handle)
       await refreshRecentDirectories()

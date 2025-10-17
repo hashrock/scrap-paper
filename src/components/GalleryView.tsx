@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import type { SavedImage } from '../types'
 
 interface GalleryViewProps {
@@ -10,6 +11,7 @@ interface GalleryViewProps {
 const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewProps) => {
   const [selectedImage, setSelectedImage] = useState<SavedImage | null>(null)
   const [deletingImage, setDeletingImage] = useState<string | null>(null)
+  const [hoveredImage, setHoveredImage] = useState<string | null>(null)
 
   const handleDelete = async (e: React.MouseEvent, image: SavedImage) => {
     e.stopPropagation()
@@ -40,10 +42,9 @@ const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewPro
     return (
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-        gap: '20px',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: '1px',
         width: '100%',
-        maxWidth: '1400px',
         alignContent: 'start',
         gridAutoRows: 'min-content'
       }}>
@@ -63,10 +64,9 @@ const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewPro
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-      gap: '20px',
+      gridTemplateColumns: 'repeat(4, 1fr)',
+      gap: '1px',
       width: '100%',
-      maxWidth: '1400px',
       alignContent: 'start',
       gridAutoRows: 'min-content'
     }}>
@@ -75,23 +75,14 @@ const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewPro
           key={image.name}
           style={{
             backgroundColor: '#fff',
-            borderRadius: '8px',
             overflow: 'hidden',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            transition: 'transform 0.2s, box-shadow 0.2s',
             cursor: 'pointer',
             position: 'relative',
             opacity: deletingImage === image.name ? 0.5 : 1
           }}
           onClick={() => handleImageClick(image)}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)'
-            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.15)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)'
-          }}
+          onMouseEnter={() => setHoveredImage(image.name)}
+          onMouseLeave={() => setHoveredImage(null)}
         >
           <button
             onClick={(e) => handleDelete(e, image)}
@@ -111,8 +102,10 @@ const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewPro
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'background-color 0.2s',
-              zIndex: 10
+              transition: 'background-color 0.2s, opacity 0.2s',
+              zIndex: 10,
+              opacity: hoveredImage === image.name ? 1 : 0,
+              pointerEvents: hoveredImage === image.name ? 'auto' : 'none'
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.9)'
@@ -121,7 +114,7 @@ const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewPro
               e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.6)'
             }}
           >
-            ×
+            <X size={18} />
           </button>
           <img
             src={image.url}
@@ -132,14 +125,6 @@ const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewPro
               backgroundColor: '#fff'
             }}
           />
-          <div style={{
-            padding: '12px 16px',
-            fontSize: '13px',
-            color: '#666',
-            borderTop: '1px solid #eee'
-          }}>
-            {image.name}
-          </div>
         </div>
       ))}
 
@@ -186,7 +171,7 @@ const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewPro
               e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'
             }}
           >
-            ×
+            <X size={24} />
           </button>
           <img
             src={selectedImage.url}
