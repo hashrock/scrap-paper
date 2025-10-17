@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { MouseEvent } from 'react'
+import type { MouseEvent, TouchEvent } from 'react'
 import { CURRENT_CANVAS_FILENAME } from '../constants'
 import type { Tool } from '../types'
 
@@ -56,6 +56,7 @@ const CanvasWorkspace = ({
   const [canUndo, setCanUndo] = useState(false)
   const [hoveredScissorY, setHoveredScissorY] = useState<number | null>(null)
   const [cutAnimation, setCutAnimation] = useState<CutAnimationState | null>(null)
+  const [responsiveScale, setResponsiveScale] = useState(1)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawing = useRef(false)
   const isExtending = useRef(false)
@@ -232,8 +233,8 @@ const CanvasWorkspace = ({
     if (!canvas) return
 
     const rect = canvas.getBoundingClientRect()
-    const x = (event.clientX - rect.left) / zoom
-    const y = (event.clientY - rect.top) / zoom
+    const x = (event.clientX - rect.left) / (zoom * responsiveScale)
+    const y = (event.clientY - rect.top) / (zoom * responsiveScale)
 
     captureSnapshot()
 
@@ -246,7 +247,7 @@ const CanvasWorkspace = ({
     ctx.lineWidth = strokeWidth
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
-  }, [captureSnapshot, getCanvasContext, strokeWidth, tool, zoom])
+  }, [captureSnapshot, getCanvasContext, strokeWidth, tool, zoom, responsiveScale])
 
   const handleMouseMove = useCallback((event: MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing.current) return
@@ -255,8 +256,8 @@ const CanvasWorkspace = ({
     if (!canvas) return
 
     const rect = canvas.getBoundingClientRect()
-    const x = (event.clientX - rect.left) / zoom
-    const y = (event.clientY - rect.top) / zoom
+    const x = (event.clientX - rect.left) / (zoom * responsiveScale)
+    const y = (event.clientY - rect.top) / (zoom * responsiveScale)
 
     const ctx = getCanvasContext()
     if (!ctx) return
@@ -267,7 +268,7 @@ const CanvasWorkspace = ({
     if (y > canvasHeight - 200) {
       needsExtension.current = true
     }
-  }, [canvasHeight, getCanvasContext, zoom])
+  }, [canvasHeight, getCanvasContext, zoom, responsiveScale])
 
   const finalizeStroke = useCallback(() => {
     isDrawing.current = false
@@ -280,6 +281,60 @@ const CanvasWorkspace = ({
 
     scheduleAutoSave()
   }, [extendCanvas, scheduleAutoSave])
+
+  const handleTouchStart = useCallback((event: TouchEvent<HTMLCanvasElement>) => {
+    event.preventDefault()
+    if (event.touches.length !== 1) return
+
+    isDrawing.current = true
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const touch = event.touches[0]
+    const rect = canvas.getBoundingClientRect()
+    const x = (touch.clientX - rect.left) / (zoom * responsiveScale)
+    const y = (touch.clientY - rect.top) / (zoom * responsiveScale)
+
+    captureSnapshot()
+
+    const ctx = getCanvasContext()
+    if (!ctx) return
+
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.strokeStyle = tool === 'pen' ? 'black' : 'white'
+    ctx.lineWidth = strokeWidth
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+  }, [captureSnapshot, getCanvasContext, strokeWidth, tool, zoom, responsiveScale])
+
+  const handleTouchMove = useCallback((event: TouchEvent<HTMLCanvasElement>) => {
+    event.preventDefault()
+    if (!isDrawing.current || event.touches.length !== 1) return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const touch = event.touches[0]
+    const rect = canvas.getBoundingClientRect()
+    const x = (touch.clientX - rect.left) / (zoom * responsiveScale)
+    const y = (touch.clientY - rect.top) / (zoom * responsiveScale)
+
+    const ctx = getCanvasContext()
+    if (!ctx) return
+
+    ctx.lineTo(x, y)
+    ctx.stroke()
+
+    if (y > canvasHeight - 200) {
+      needsExtension.current = true
+    }
+  }, [canvasHeight, getCanvasContext, zoom, responsiveScale])
+
+  const handleTouchEnd = useCallback((event: TouchEvent<HTMLCanvasElement>) => {
+    event.preventDefault()
+    finalizeStroke()
+  }, [finalizeStroke])
 
   const handleScissorClick = useCallback(async (y: number) => {
     if (!directoryHandle) return
@@ -480,6 +535,25 @@ const CanvasWorkspace = ({
   const canSave = Boolean(directoryHandle)
 
   useEffect(() => {
+    const updateScale = () => {
+      const viewportWidth = window.innerWidth
+      
+      // On mobile, scale down canvas to fit screen with padding
+      if (viewportWidth < 900) {
+        const availableWidth = viewportWidth - 80 // 40px padding on each side
+        const scaleByWidth = availableWidth / CANVAS_WIDTH
+        setResponsiveScale(Math.min(scaleByWidth, 1))
+      } else {
+        setResponsiveScale(1)
+      }
+    }
+
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  }, [])
+
+  useEffect(() => {
     if (!canSave && hoveredScissorY !== null) {
       setHoveredScissorY(null)
     }
@@ -498,7 +572,7 @@ const CanvasWorkspace = ({
       <div
         style={{
           position: 'relative',
-          width: `${scaledWidth}px`,
+          width: `${scaledWidth * responsiveScale}px`,
           maxWidth: '100%'
         }}
       >
@@ -515,7 +589,7 @@ const CanvasWorkspace = ({
             gap: '18px',
             padding: '12px 20px',
             width: `${panelWidth}px`,
-            maxWidth: 'calc(100vw - 96px)'
+            maxWidth: 'calc(100vw - 40px)'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -652,8 +726,8 @@ const CanvasWorkspace = ({
         <div
           style={{
             position: 'relative',
-            width: `${scaledWidth}px`,
-            height: `${scaledHeight}px`,
+            width: `${scaledWidth * responsiveScale}px`,
+            height: `${scaledHeight * responsiveScale}px`,
             overflow: 'visible'
           }}
         >
@@ -662,7 +736,7 @@ const CanvasWorkspace = ({
               position: 'relative',
               width: `${CANVAS_WIDTH}px`,
               height: `${canvasHeight}px`,
-              transform: `scale(${zoom})`,
+              transform: `scale(${zoom * responsiveScale})`,
               transformOrigin: 'top left'
             }}
           >
@@ -695,11 +769,16 @@ const CanvasWorkspace = ({
               onMouseMove={handleMouseMove}
               onMouseUp={finalizeStroke}
               onMouseLeave={finalizeStroke}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
               style={{
                 border: '1px solid #ddd',
                 cursor: 'crosshair',
                 display: 'block',
-                backgroundColor: '#fff'
+                backgroundColor: '#fff',
+                touchAction: 'none'
               }}
             />
 
@@ -818,7 +897,7 @@ const CanvasWorkspace = ({
                   }}
                   onMouseMove={(event) => {
                     const rect = event.currentTarget.getBoundingClientRect()
-                    const relativeY = (event.clientY - rect.top) / zoom
+                    const relativeY = (event.clientY - rect.top) / (zoom * responsiveScale)
                     const clampedY = Math.max(50, Math.min(canvasHeight - 50, relativeY))
                     setHoveredScissorY(Math.round(clampedY))
                   }}
@@ -837,8 +916,8 @@ const CanvasWorkspace = ({
       <div
         style={{
           position: 'fixed',
-          right: '32px',
-          bottom: '32px',
+          right: '16px',
+          bottom: '16px',
           display: 'flex',
           alignItems: 'center',
           zIndex: 100

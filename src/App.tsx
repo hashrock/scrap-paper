@@ -90,7 +90,8 @@ function App() {
           style={{
             position: 'fixed',
             top: '88px',
-            right: '32px',
+            right: '16px',
+            left: '16px',
             backgroundColor: '#111',
             color: '#fff',
             padding: '18px 24px',
@@ -100,6 +101,8 @@ function App() {
             flexDirection: 'column',
             gap: '12px',
             maxWidth: '320px',
+            marginLeft: 'auto',
+            marginRight: 'auto',
             zIndex: 150
           }}
         >
@@ -161,7 +164,7 @@ function App() {
         backgroundColor: '#f5f5f5',
         display: 'flex',
         justifyContent: 'center',
-        padding: '40px'
+        padding: '40px 20px'
       }}>
         {mode === 'gallery' ? (
           hasDirectory ? (
