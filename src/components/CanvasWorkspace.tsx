@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { MouseEvent, TouchEvent } from 'react'
+import type { PointerEvent } from 'react'
 import { CURRENT_CANVAS_FILENAME } from '../constants'
 import type { Tool } from '../types'
 
@@ -227,7 +227,8 @@ const CanvasWorkspace = ({
     scheduleAutoSave()
   }, [canvasHeight, captureSnapshot, getCanvasContext, hoveredScissorY, scheduleAutoSave])
 
-  const handleMouseDown = useCallback((event: MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerDown = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
+    event.preventDefault()
     isDrawing.current = true
     const canvas = canvasRef.current
     if (!canvas) return
@@ -249,8 +250,9 @@ const CanvasWorkspace = ({
     ctx.lineJoin = 'round'
   }, [captureSnapshot, getCanvasContext, strokeWidth, tool, zoom, responsiveScale])
 
-  const handleMouseMove = useCallback((event: MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerMove = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing.current) return
+    event.preventDefault()
 
     const canvas = canvasRef.current
     if (!canvas) return
@@ -282,56 +284,7 @@ const CanvasWorkspace = ({
     scheduleAutoSave()
   }, [extendCanvas, scheduleAutoSave])
 
-  const handleTouchStart = useCallback((event: TouchEvent<HTMLCanvasElement>) => {
-    event.preventDefault()
-    if (event.touches.length !== 1) return
-
-    isDrawing.current = true
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const touch = event.touches[0]
-    const rect = canvas.getBoundingClientRect()
-    const x = (touch.clientX - rect.left) / (zoom * responsiveScale)
-    const y = (touch.clientY - rect.top) / (zoom * responsiveScale)
-
-    captureSnapshot()
-
-    const ctx = getCanvasContext()
-    if (!ctx) return
-
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-    ctx.strokeStyle = tool === 'pen' ? 'black' : 'white'
-    ctx.lineWidth = strokeWidth
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-  }, [captureSnapshot, getCanvasContext, strokeWidth, tool, zoom, responsiveScale])
-
-  const handleTouchMove = useCallback((event: TouchEvent<HTMLCanvasElement>) => {
-    event.preventDefault()
-    if (!isDrawing.current || event.touches.length !== 1) return
-
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const touch = event.touches[0]
-    const rect = canvas.getBoundingClientRect()
-    const x = (touch.clientX - rect.left) / (zoom * responsiveScale)
-    const y = (touch.clientY - rect.top) / (zoom * responsiveScale)
-
-    const ctx = getCanvasContext()
-    if (!ctx) return
-
-    ctx.lineTo(x, y)
-    ctx.stroke()
-
-    if (y > canvasHeight - 200) {
-      needsExtension.current = true
-    }
-  }, [canvasHeight, getCanvasContext, zoom, responsiveScale])
-
-  const handleTouchEnd = useCallback((event: TouchEvent<HTMLCanvasElement>) => {
+  const handlePointerUp = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     event.preventDefault()
     finalizeStroke()
   }, [finalizeStroke])
@@ -765,14 +718,11 @@ const CanvasWorkspace = ({
               ref={canvasRef}
               width={CANVAS_WIDTH}
               height={canvasHeight}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={finalizeStroke}
-              onMouseLeave={finalizeStroke}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              onTouchCancel={handleTouchEnd}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+              onPointerCancel={handlePointerUp}
               style={{
                 border: '1px solid #ddd',
                 cursor: 'crosshair',
