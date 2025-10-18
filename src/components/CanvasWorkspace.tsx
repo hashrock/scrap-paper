@@ -374,6 +374,13 @@ const CanvasWorkspace = ({
             newCtx.fillRect(0, 0, CANVAS_WIDTH, newHeight)
             newCtx.putImageData(lowerImageData, 0, 0)
             scheduleAutoSave()
+
+            // Auto-extend if canvas is too short
+            if (newHeight < 800) {
+              setTimeout(() => {
+                extendCanvas()
+              }, 100)
+            }
           }, 0)
         }, 100)
 
@@ -416,7 +423,28 @@ const CanvasWorkspace = ({
     }
     historyRef.current = []
     setCanUndo(false)
-  }, [directoryHandle])
+
+    // Load saved canvas when directory changes
+    const loadCanvas = async () => {
+      if (!directoryHandle) return
+
+      try {
+        const fileHandle = await directoryHandle.getFileHandle(CURRENT_CANVAS_FILENAME)
+        const file = await fileHandle.getFile()
+        const img = new Image()
+        img.onload = () => {
+          const ctx = getCanvasContext()
+          if (!ctx) return
+          ctx.drawImage(img, 0, 0)
+        }
+        img.src = URL.createObjectURL(file)
+      } catch (err) {
+        // File doesn't exist yet, that's okay
+      }
+    }
+
+    void loadCanvas()
+  }, [directoryHandle, getCanvasContext])
 
   useEffect(() => {
     return () => {
@@ -919,6 +947,46 @@ const CanvasWorkspace = ({
             )}
           </div>
         </div>
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginTop: '16px'
+        }}
+      >
+        <button
+          type="button"
+          onClick={extendCanvas}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '999px',
+            border: '1px solid rgba(17, 24, 39, 0.12)',
+            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+            color: '#111',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'background-color 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.7)'
+          }}
+          title="Extend canvas"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Extend canvas
+        </button>
+      </div>
 
       <div
         style={{

@@ -163,7 +163,20 @@ function App() {
         justifyContent: 'center',
         padding: mode === 'gallery' && hasDirectory ? '0' : '40px 20px'
       }}>
-        {mode === 'gallery' ? (
+        <div style={{ display: mode === 'canvas' ? 'block' : 'none', width: '100%' }}>
+          <CanvasWorkspace
+            directoryHandle={directoryHandle}
+            tool={tool}
+            strokeWidth={strokeWidth}
+            strokeWidthOptions={STROKE_WIDTH_OPTIONS}
+            shortcuts={shortcuts}
+            onToolChange={setTool}
+            onStrokeWidthChange={setStrokeWidth}
+            onImageSaved={handleImageSaved}
+            onSettingsClick={() => setShowSettings(true)}
+          />
+        </div>
+        {mode === 'gallery' && (
           hasDirectory ? (
             <GalleryView
               directoryHandle={directoryHandle as FileSystemDirectoryHandle}
@@ -227,18 +240,6 @@ function App() {
               )}
             </div>
           )
-        ) : (
-          <CanvasWorkspace
-            directoryHandle={directoryHandle}
-            tool={tool}
-            strokeWidth={strokeWidth}
-            strokeWidthOptions={STROKE_WIDTH_OPTIONS}
-            shortcuts={shortcuts}
-            onToolChange={setTool}
-            onStrokeWidthChange={setStrokeWidth}
-            onImageSaved={handleImageSaved}
-            onSettingsClick={() => setShowSettings(true)}
-          />
         )}
       </div>
 
