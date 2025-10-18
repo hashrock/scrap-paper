@@ -23,7 +23,15 @@ body {
     transform: translateY(0);
     opacity: 1;
   }
-  80% {
+  15% {
+    transform: translateY(-40px);
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(-40px);
+    opacity: 1;
+  }
+  85% {
     opacity: 1;
   }
   100% {
