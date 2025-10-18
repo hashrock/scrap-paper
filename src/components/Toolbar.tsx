@@ -18,7 +18,9 @@ const Toolbar = ({ mode, onModeChange, onSettingsClick }: ToolbarProps) => {
       style={{
         backgroundColor: '#fff',
         borderBottom: '1px solid #e5e7eb',
-        boxShadow: '0 4px 20px rgba(15, 23, 42, 0.04)'
+        boxShadow: '0 4px 20px rgba(15, 23, 42, 0.04)',
+        position: 'relative',
+        zIndex: 200
       }}
     >
       <div

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
-import { Undo2 } from 'lucide-react'
+import { Undo2, X } from 'lucide-react'
 import { CURRENT_CANVAS_FILENAME } from '../constants'
 import type { Tool } from '../types'
 
@@ -527,14 +527,16 @@ const CanvasWorkspace = ({
         flexDirection: 'column',
         alignItems: 'center',
         paddingTop: '72px',
-        paddingBottom: `${bottomPadding}px`
+        paddingBottom: `${bottomPadding}px`,
+        isolation: 'isolate'
       }}
     >
       <div
         style={{
           position: 'relative',
           width: `${scaledWidth * responsiveScale}px`,
-          maxWidth: '100%'
+          maxWidth: '100%',
+          isolation: 'isolate'
         }}
       >
         <div
@@ -550,7 +552,8 @@ const CanvasWorkspace = ({
             gap: '18px',
             padding: '12px 20px',
             width: `${panelWidth}px`,
-            maxWidth: 'calc(100vw - 40px)'
+            maxWidth: 'calc(100vw - 40px)',
+            zIndex: 200
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -672,11 +675,7 @@ const CanvasWorkspace = ({
               }}
               title="Clear canvas"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="5" y="4" width="14" height="16" rx="1.5" />
-                <path d="M9 9l6 6" />
-                <path d="M15 9l-6 6" />
-              </svg>
+              <X size={18} />
             </button>
           </div>
         </div>
@@ -747,7 +746,7 @@ const CanvasWorkspace = ({
                   height: `${cutAnimation.height}px`,
                   pointerEvents: 'none',
                   animation: 'slideUp 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards',
-                  zIndex: 100
+                  zIndex: 50
                 }}
               >
                 <img
@@ -756,8 +755,7 @@ const CanvasWorkspace = ({
                   style={{
                     width: '100%',
                     height: '100%',
-                    display: 'block',
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+                    display: 'block'
                   }}
                 />
               </div>
@@ -772,37 +770,41 @@ const CanvasWorkspace = ({
                     left: 0,
                     width: `${CANVAS_WIDTH}px`,
                     height: `${hoveredScissorY}px`,
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                    pointerEvents: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+                    pointerEvents: 'none'
                   }}
-                >
-                  <div style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    padding: '8px 16px',
-                    borderRadius: '4px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#000',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-                  }}>
-                    Save as {generateFilename()}
-                  </div>
-                </div>
+                />
                 <div
                   style={{
                     position: 'absolute',
                     top: `${hoveredScissorY}px`,
                     left: 0,
                     width: `${CANVAS_WIDTH}px`,
-                    height: '2px',
-                    backgroundColor: '#000',
+                    height: '1px',
                     pointerEvents: 'none',
-                    boxShadow: '0 0 4px rgba(0, 0, 0, 0.5)'
+                    background: 'repeating-linear-gradient(to right, rgba(150, 150, 150, 0.35) 0px, rgba(150, 150, 150, 0.35) 6px, transparent 6px, transparent 12px)',
+                    filter: 'drop-shadow(0 0.5px 0 rgba(255, 255, 255, 0.3)) drop-shadow(0 -0.5px 0 rgba(0, 0, 0, 0.08))'
                   }}
                 />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: `${hoveredScissorY}px`,
+                    left: '50%',
+                    transform: 'translateX(-50%) translateY(-50%)',
+                    pointerEvents: 'none',
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    padding: '3px 10px',
+                    borderRadius: '999px',
+                    fontSize: '11px',
+                    fontWeight: '500',
+                    color: '#666',
+                    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.1)',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Save as {generateFilename()}
+                </div>
               </>
             )}
 
