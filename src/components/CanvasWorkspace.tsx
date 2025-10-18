@@ -12,6 +12,8 @@ const MAX_HISTORY = 20
 interface CutAnimationState {
   imageUrl: string
   height: number
+  lowerImageUrl: string
+  lowerHeight: number
 }
 
 interface KeyboardShortcuts {
@@ -58,6 +60,7 @@ const CanvasWorkspace = ({
   const [hoveredScissorY, setHoveredScissorY] = useState<number | null>(null)
   const [cutAnimation, setCutAnimation] = useState<CutAnimationState | null>(null)
   const [responsiveScale, setResponsiveScale] = useState(1)
+  const [canvasOffsetY, setCanvasOffsetY] = useState(0)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawing = useRef(false)
   const isExtending = useRef(false)
@@ -317,10 +320,29 @@ const CanvasWorkspace = ({
     upperCtx.putImageData(imageData, 0, 0)
 
     const animationImageUrl = upperCanvas.toDataURL('image/png')
-    setCutAnimation({ imageUrl: animationImageUrl, height: y })
+
+    // Create lower canvas for animation
+    const lowerCanvas = document.createElement('canvas')
+    lowerCanvas.width = CANVAS_WIDTH
+    lowerCanvas.height = canvasHeight - y
+    const lowerCtx = lowerCanvas.getContext('2d')
+    if (!lowerCtx) return
+
+    const lowerImageData = ctx.getImageData(0, y, CANVAS_WIDTH, canvasHeight - y)
+    lowerCtx.putImageData(lowerImageData, 0, 0)
+    const lowerAnimationImageUrl = lowerCanvas.toDataURL('image/png')
+
+    setCutAnimation({
+      imageUrl: animationImageUrl,
+      height: y,
+      lowerImageUrl: lowerAnimationImageUrl,
+      lowerHeight: canvasHeight - y
+    })
+    setCanvasOffsetY(y)
 
     setTimeout(() => {
       setCutAnimation(null)
+      setCanvasOffsetY(0)
     }, 800)
 
     upperCanvas.toBlob(async (blob) => {
@@ -693,8 +715,9 @@ const CanvasWorkspace = ({
               position: 'relative',
               width: `${CANVAS_WIDTH}px`,
               height: `${canvasHeight}px`,
-              transform: `scale(${zoom * responsiveScale})`,
-              transformOrigin: 'top left'
+              transform: `scale(${zoom * responsiveScale}) translateY(${canvasOffsetY}px)`,
+              transformOrigin: 'top left',
+              transition: canvasOffsetY > 0 ? 'none' : 'transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1)'
             }}
           >
             <svg
@@ -730,35 +753,62 @@ const CanvasWorkspace = ({
               style={{
                 border: '1px solid #ddd',
                 cursor: 'crosshair',
-                display: 'block',
+                display: cutAnimation ? 'none' : 'block',
                 backgroundColor: '#fff',
                 touchAction: 'none'
               }}
             />
 
             {cutAnimation && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: `${CANVAS_WIDTH}px`,
-                  height: `${cutAnimation.height}px`,
-                  pointerEvents: 'none',
-                  animation: 'slideUp 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards',
-                  zIndex: 50
-                }}
-              >
-                <img
-                  src={cutAnimation.imageUrl}
-                  alt="Cut animation"
+              <>
+                <div
                   style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'block'
+                    position: 'absolute',
+                    top: `-${canvasOffsetY}px`,
+                    left: 0,
+                    width: `${CANVAS_WIDTH}px`,
+                    height: `${cutAnimation.height}px`,
+                    pointerEvents: 'none',
+                    animation: 'slideUp 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards',
+                    zIndex: 50
                   }}
-                />
-              </div>
+                >
+                  <img
+                    src={cutAnimation.imageUrl}
+                    alt="Cut animation"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'block',
+                      border: '1px solid #ddd',
+                      backgroundColor: '#fff'
+                    }}
+                  />
+                </div>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: `${CANVAS_WIDTH}px`,
+                    height: `${cutAnimation.lowerHeight}px`,
+                    pointerEvents: 'none',
+                    zIndex: 40
+                  }}
+                >
+                  <img
+                    src={cutAnimation.lowerImageUrl}
+                    alt="Lower canvas"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'block',
+                      border: '1px solid #ddd',
+                      backgroundColor: '#fff'
+                    }}
+                  />
+                </div>
+              </>
             )}
 
             {canSave && hoveredScissorY !== null && !cutAnimation && (
