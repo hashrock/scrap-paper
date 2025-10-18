@@ -797,7 +797,7 @@ const CanvasWorkspace = ({
                     width: `${CANVAS_WIDTH}px`,
                     height: `${cutAnimation.height}px`,
                     pointerEvents: 'none',
-                    animation: 'slideUp 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards',
+                    animation: 'slideUp 1.0s cubic-bezier(0.4, 0.0, 0.5, 1) forwards',
                     zIndex: 50
                   }}
                 >
