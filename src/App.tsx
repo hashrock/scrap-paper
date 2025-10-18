@@ -92,6 +92,69 @@ function App() {
     }
   }, [mode, reloadSavedImages, showToast])
 
+  const adjustColorForBackground = useCallback((hex: string) => {
+    // Convert hex to RGB
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+
+    // Convert RGB to HSL
+    const rNorm = r / 255
+    const gNorm = g / 255
+    const bNorm = b / 255
+
+    const max = Math.max(rNorm, gNorm, bNorm)
+    const min = Math.min(rNorm, gNorm, bNorm)
+    let h = 0
+    let s = 0
+    const l = (max + min) / 2
+
+    if (max !== min) {
+      const d = max - min
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+
+      switch (max) {
+        case rNorm: h = ((gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)) / 6; break
+        case gNorm: h = ((bNorm - rNorm) / d + 2) / 6; break
+        case bNorm: h = ((rNorm - gNorm) / d + 4) / 6; break
+      }
+    }
+
+    // Reduce saturation and darken slightly
+    const newS = s * 0.3  // Reduce saturation to 30% of original
+    const newL = Math.max(0, l * 0.97)  // Darken by 3%
+
+    // Convert HSL back to RGB
+    const hueToRgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1
+      if (t > 1) t -= 1
+      if (t < 1/6) return p + (q - p) * 6 * t
+      if (t < 1/2) return q
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
+      return p
+    }
+
+    let newR: number, newG: number, newB: number
+    if (newS === 0) {
+      newR = newG = newB = newL
+    } else {
+      const q = newL < 0.5 ? newL * (1 + newS) : newL + newS - newL * newS
+      const p = 2 * newL - q
+      newR = hueToRgb(p, q, h + 1/3)
+      newG = hueToRgb(p, q, h)
+      newB = hueToRgb(p, q, h - 1/3)
+    }
+
+    // Convert back to hex
+    const r255 = Math.round(newR * 255)
+    const g255 = Math.round(newG * 255)
+    const b255 = Math.round(newB * 255)
+
+    return `#${r255.toString(16).padStart(2, '0')}${g255.toString(16).padStart(2, '0')}${b255.toString(16).padStart(2, '0')}`
+  }, [])
+
+  const appBackgroundColor = mode === 'canvas' ? adjustColorForBackground(backgroundColor) : '#f5f5f5'
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -179,10 +242,11 @@ function App() {
 
       <div style={{
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: appBackgroundColor,
         display: 'flex',
         justifyContent: 'center',
-        padding: mode === 'gallery' && hasDirectory ? '0' : '40px 20px'
+        padding: mode === 'gallery' && hasDirectory ? '0' : '40px 20px',
+        transition: 'background-color 0.3s ease'
       }}>
         <div style={{ display: mode === 'canvas' ? 'block' : 'none', width: '100%' }}>
           <CanvasWorkspace

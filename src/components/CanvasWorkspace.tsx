@@ -767,7 +767,7 @@ const CanvasWorkspace = ({
             >
               <path
                 d={tornEdgePath}
-                fill="#fff"
+                fill={backgroundColor}
                 stroke="#ddd"
                 strokeWidth="1"
               />
