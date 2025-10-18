@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Check } from 'lucide-react'
 import type { SavedImage } from '../types'
 
 interface GalleryViewProps {
@@ -12,22 +12,27 @@ const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewPro
   const [selectedImage, setSelectedImage] = useState<SavedImage | null>(null)
   const [deletingImage, setDeletingImage] = useState<string | null>(null)
   const [hoveredImage, setHoveredImage] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
 
-  const handleDelete = async (e: React.MouseEvent, image: SavedImage) => {
+  const handleDeleteClick = async (e: React.MouseEvent, image: SavedImage) => {
     e.stopPropagation()
-    if (!confirm(`Delete ${image.name}?`)) {
-      return
-    }
 
-    setDeletingImage(image.name)
-    try {
-      await directoryHandle.removeEntry(image.name, { recursive: false })
-      onImageDeleted?.()
-    } catch (err) {
-      console.error('Failed to delete image', err)
-      alert('Failed to delete image')
-    } finally {
-      setDeletingImage(null)
+    if (confirmingDelete === image.name) {
+      // Second click - actually delete
+      setDeletingImage(image.name)
+      setConfirmingDelete(null)
+      try {
+        await directoryHandle.removeEntry(image.name, { recursive: false })
+        onImageDeleted?.()
+      } catch (err) {
+        console.error('Failed to delete image', err)
+        alert('Failed to delete image')
+      } finally {
+        setDeletingImage(null)
+      }
+    } else {
+      // First click - show confirmation state
+      setConfirmingDelete(image.name)
     }
   }
 
@@ -85,36 +90,53 @@ const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewPro
           onMouseLeave={() => setHoveredImage(null)}
         >
           <button
-            onClick={(e) => handleDelete(e, image)}
+            onClick={(e) => handleDeleteClick(e, image)}
             disabled={deletingImage === image.name}
             style={{
               position: 'absolute',
               top: '8px',
               right: '8px',
-              width: '32px',
+              width: confirmingDelete === image.name ? 'auto' : '32px',
               height: '32px',
-              borderRadius: '50%',
+              padding: confirmingDelete === image.name ? '0 12px' : '0',
+              borderRadius: confirmingDelete === image.name ? '999px' : '50%',
               border: 'none',
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              backgroundColor: confirmingDelete === image.name
+                ? 'rgba(220, 38, 38, 0.9)'
+                : 'rgba(0, 0, 0, 0.6)',
               color: '#fff',
-              fontSize: '18px',
+              fontSize: confirmingDelete === image.name ? '11px' : '18px',
+              fontWeight: confirmingDelete === image.name ? 600 : 'normal',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: '6px',
               transition: 'background-color 0.2s, opacity 0.2s',
               zIndex: 10,
-              opacity: hoveredImage === image.name ? 1 : 0,
-              pointerEvents: hoveredImage === image.name ? 'auto' : 'none'
+              opacity: hoveredImage === image.name || confirmingDelete === image.name ? 1 : 0,
+              pointerEvents: hoveredImage === image.name || confirmingDelete === image.name ? 'auto' : 'none',
+              whiteSpace: 'nowrap'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.9)'
+              if (confirmingDelete !== image.name) {
+                e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.9)'
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.6)'
+              if (confirmingDelete !== image.name) {
+                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.6)'
+              }
             }}
           >
-            <X size={18} />
+            {confirmingDelete === image.name ? (
+              <>
+                <Check size={16} />
+                <span>Click again to delete</span>
+              </>
+            ) : (
+              <X size={18} />
+            )}
           </button>
           <img
             src={image.url}
@@ -143,10 +165,16 @@ const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewPro
             zIndex: 1000,
             padding: '40px'
           }}
-          onClick={handleClosePreview}
+          onClick={() => {
+            handleClosePreview()
+            setConfirmingDelete(null)
+          }}
         >
           <button
-            onClick={handleClosePreview}
+            onClick={() => {
+              handleClosePreview()
+              setConfirmingDelete(null)
+            }}
             style={{
               position: 'absolute',
               top: '20px',
@@ -200,6 +228,7 @@ const GalleryView = ({ images, onImageDeleted, directoryHandle }: GalleryViewPro
           </div>
         </div>
       )}
+
     </div>
   )
 }

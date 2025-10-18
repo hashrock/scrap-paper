@@ -3,6 +3,7 @@ import type { PointerEvent } from 'react'
 import { Undo2, X } from 'lucide-react'
 import { CURRENT_CANVAS_FILENAME } from '../constants'
 import type { Tool } from '../types'
+import ConfirmDialog from './ConfirmDialog'
 
 const INITIAL_CANVAS_HEIGHT = 1200
 const CANVAS_WIDTH = 800
@@ -65,6 +66,7 @@ const CanvasWorkspace = ({
   const [cutAnimation, setCutAnimation] = useState<CutAnimationState | null>(null)
   const [responsiveScale, setResponsiveScale] = useState(1)
   const [canvasOffsetY, setCanvasOffsetY] = useState(0)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawing = useRef(false)
   const isExtending = useRef(false)
@@ -218,8 +220,7 @@ const CanvasWorkspace = ({
     scheduleAutoSave()
   }, [restoreSnapshot, scheduleAutoSave])
 
-  const handleClear = useCallback(() => {
-    if (!confirm('Clear the canvas?')) return
+  const handleClearConfirm = useCallback(() => {
     captureSnapshot()
 
     const ctx = getCanvasContext()
@@ -233,6 +234,7 @@ const CanvasWorkspace = ({
     }
     needsExtension.current = false
     scheduleAutoSave()
+    setShowClearConfirm(false)
   }, [canvasHeight, captureSnapshot, getCanvasContext, hoveredScissorY, scheduleAutoSave, backgroundColor])
 
   const handlePointerDown = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
@@ -712,7 +714,7 @@ const CanvasWorkspace = ({
             </button>
             <button
               type="button"
-              onClick={handleClear}
+              onClick={() => setShowClearConfirm(true)}
               style={{
                 width: '32px',
                 height: '32px',
@@ -1075,6 +1077,16 @@ const CanvasWorkspace = ({
         </div>
 
       </div>
+
+      <ConfirmDialog
+        visible={showClearConfirm}
+        title="Clear canvas?"
+        message="Are you sure you want to clear the canvas? This action cannot be undone."
+        confirmText="Clear"
+        cancelText="Cancel"
+        onConfirm={handleClearConfirm}
+        onCancel={() => setShowClearConfirm(false)}
+      />
 
     </div>
   )

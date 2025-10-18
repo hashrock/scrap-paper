@@ -17,7 +17,7 @@ const Footer = () => {
           fontWeight: 600
         }}
       >
-        Scrap Paper
+        Chigiri Note
       </div>
     </footer>
   )

@@ -1,4 +1,4 @@
-# Scrap Paper
+# ちぎりノート (Chigiri Note)
 
 A vertical canvas paint tool for quick sketching and note-taking with automatic file management.
 
