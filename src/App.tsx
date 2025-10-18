@@ -167,6 +167,7 @@ function App() {
         mode={mode}
         onModeChange={setMode}
         onSettingsClick={() => setShowSettings(true)}
+        backgroundColor={appBackgroundColor}
       />
 
       {!hasDirectory && (

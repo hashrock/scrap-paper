@@ -5,6 +5,7 @@ interface ToolbarProps {
   mode: Mode
   onModeChange: (mode: Mode) => void
   onSettingsClick: () => void
+  backgroundColor?: string
 }
 
 const tabs: Array<{ id: Mode; label: string }> = [
@@ -12,22 +13,21 @@ const tabs: Array<{ id: Mode; label: string }> = [
   { id: 'gallery', label: 'Gallery' }
 ]
 
-const Toolbar = ({ mode, onModeChange, onSettingsClick }: ToolbarProps) => {
+const Toolbar = ({ mode, onModeChange, onSettingsClick, backgroundColor = '#f5f5f5' }: ToolbarProps) => {
   return (
     <div
       style={{
-        backgroundColor: '#fff',
-        borderBottom: '1px solid #e5e7eb',
-        boxShadow: '0 4px 20px rgba(15, 23, 42, 0.04)',
+        backgroundColor: backgroundColor,
         position: 'relative',
-        zIndex: 200
+        zIndex: 200,
+        transition: 'background-color 0.3s ease'
       }}
     >
       <div
         style={{
           maxWidth: '960px',
           margin: '0 auto',
-          padding: '12px 24px 0',
+          padding: '16px 24px',
           display: 'flex',
           justifyContent: 'center',
           position: 'relative'
@@ -36,9 +36,10 @@ const Toolbar = ({ mode, onModeChange, onSettingsClick }: ToolbarProps) => {
         <div
           style={{
             display: 'flex',
-            gap: '36px',
-            position: 'relative',
-            paddingBottom: '12px'
+            gap: '4px',
+            backgroundColor: '#f5f5f5',
+            borderRadius: '8px',
+            padding: '4px'
           }}
         >
           {tabs.map((tab) => {
@@ -53,33 +54,20 @@ const Toolbar = ({ mode, onModeChange, onSettingsClick }: ToolbarProps) => {
                   }
                 }}
                 style={{
-                  position: 'relative',
-                  padding: '12px 0',
-                  backgroundColor: 'transparent',
+                  padding: '6px 16px',
+                  backgroundColor: isActive ? '#fff' : 'transparent',
                   border: 'none',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  color: isActive ? '#111' : '#9ca3af',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: isActive ? '#111' : '#6b7280',
                   cursor: isActive ? 'default' : 'pointer',
-                  transition: 'color 0.2s ease'
+                  transition: 'all 0.15s ease',
+                  boxShadow: isActive ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none'
                 }}
                 aria-pressed={isActive}
               >
                 {tab.label}
-                <span
-                  style={{
-                    position: 'absolute',
-                    left: '-8px',
-                    right: '-8px',
-                    bottom: '-12px',
-                    height: '2px',
-                    borderRadius: '999px',
-                    backgroundColor: isActive ? '#111' : 'transparent',
-                    transition: 'background-color 0.2s ease'
-                  }}
-                />
               </button>
             )
           })}
@@ -92,29 +80,29 @@ const Toolbar = ({ mode, onModeChange, onSettingsClick }: ToolbarProps) => {
             right: '24px',
             top: '50%',
             transform: 'translateY(-50%)',
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
+            width: '32px',
+            height: '32px',
+            borderRadius: '6px',
             border: 'none',
             backgroundColor: 'transparent',
-            color: '#6b7280',
+            color: '#9ca3af',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.15s ease'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#f3f4f6'
+            e.currentTarget.style.backgroundColor = '#f5f5f5'
             e.currentTarget.style.color = '#111'
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent'
-            e.currentTarget.style.color = '#6b7280'
+            e.currentTarget.style.color = '#9ca3af'
           }}
           title="Settings"
         >
-          <Settings size={20} />
+          <Settings size={18} />
         </button>
       </div>
     </div>
