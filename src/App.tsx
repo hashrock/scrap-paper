@@ -13,6 +13,8 @@ import type { Mode, Tool } from './types'
 
 const STROKE_WIDTH_OPTIONS = [1, 2, 4, 8, 16, 32, 64]
 const SHORTCUTS_STORAGE_KEY = 'canvas-keyboard-shortcuts'
+const PEN_COLOR_STORAGE_KEY = 'canvas-pen-color'
+const BACKGROUND_COLOR_STORAGE_KEY = 'canvas-background-color'
 
 interface KeyboardShortcuts {
   pen: string
@@ -23,6 +25,9 @@ const DEFAULT_SHORTCUTS: KeyboardShortcuts = {
   pen: 'p',
   eraser: 'e'
 }
+
+const DEFAULT_PEN_COLOR = '#000000'
+const DEFAULT_BACKGROUND_COLOR = '#ffffff'
 
 function App() {
   const [mode, setMode] = useState<Mode>('canvas')
@@ -40,6 +45,12 @@ function App() {
     }
     return DEFAULT_SHORTCUTS
   })
+  const [penColor, setPenColor] = useState(() => {
+    return localStorage.getItem(PEN_COLOR_STORAGE_KEY) || DEFAULT_PEN_COLOR
+  })
+  const [backgroundColor, setBackgroundColor] = useState(() => {
+    return localStorage.getItem(BACKGROUND_COLOR_STORAGE_KEY) || DEFAULT_BACKGROUND_COLOR
+  })
 
   const { directoryHandle, recentDirs, selectNewDirectory, selectRecentDirectory } = useDirectoryManager()
   const { toast, showToast } = useToast()
@@ -51,6 +62,16 @@ function App() {
     setShortcuts(newShortcuts)
     localStorage.setItem(SHORTCUTS_STORAGE_KEY, JSON.stringify(newShortcuts))
   }, [shortcuts])
+
+  const handlePenColorChange = useCallback((color: string) => {
+    setPenColor(color)
+    localStorage.setItem(PEN_COLOR_STORAGE_KEY, color)
+  }, [])
+
+  const handleBackgroundColorChange = useCallback((color: string) => {
+    setBackgroundColor(color)
+    localStorage.setItem(BACKGROUND_COLOR_STORAGE_KEY, color)
+  }, [])
 
   useEffect(() => {
     if (mode === 'gallery') {
@@ -170,6 +191,8 @@ function App() {
             strokeWidth={strokeWidth}
             strokeWidthOptions={STROKE_WIDTH_OPTIONS}
             shortcuts={shortcuts}
+            penColor={penColor}
+            backgroundColor={backgroundColor}
             onToolChange={setTool}
             onStrokeWidthChange={setStrokeWidth}
             onImageSaved={handleImageSaved}
@@ -252,8 +275,12 @@ function App() {
       <SettingsPanel
         visible={showSettings}
         shortcuts={shortcuts}
+        penColor={penColor}
+        backgroundColor={backgroundColor}
         onClose={() => setShowSettings(false)}
         onShortcutChange={handleShortcutChange}
+        onPenColorChange={handlePenColorChange}
+        onBackgroundColorChange={handleBackgroundColorChange}
       />
     </div>
   )

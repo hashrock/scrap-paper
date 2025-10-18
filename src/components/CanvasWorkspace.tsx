@@ -27,6 +27,8 @@ interface CanvasWorkspaceProps {
   strokeWidth: number
   strokeWidthOptions: number[]
   shortcuts: KeyboardShortcuts
+  penColor: string
+  backgroundColor: string
   onToolChange: (tool: Tool) => void
   onStrokeWidthChange: (width: number) => void
   onImageSaved: (filename: string) => void
@@ -49,6 +51,8 @@ const CanvasWorkspace = ({
   strokeWidth,
   strokeWidthOptions,
   shortcuts,
+  penColor,
+  backgroundColor,
   onToolChange,
   onStrokeWidthChange,
   onImageSaved,
@@ -179,7 +183,7 @@ const CanvasWorkspace = ({
         return
       }
 
-      ctx.fillStyle = 'white'
+      ctx.fillStyle = backgroundColor
       ctx.fillRect(0, 0, CANVAS_WIDTH, newHeight)
 
       const img = new Image()
@@ -194,7 +198,7 @@ const CanvasWorkspace = ({
       }
       img.src = currentImageData
     }, 0)
-  }, [canvasHeight, captureSnapshot, getCanvasContext, scheduleAutoSave])
+  }, [canvasHeight, captureSnapshot, getCanvasContext, scheduleAutoSave, backgroundColor])
 
   const sliderIndex = useMemo(() => {
     const index = strokeWidthOptions.indexOf(strokeWidth)
@@ -221,7 +225,7 @@ const CanvasWorkspace = ({
     const ctx = getCanvasContext()
     if (!ctx) return
 
-    ctx.fillStyle = 'white'
+    ctx.fillStyle = backgroundColor
     ctx.fillRect(0, 0, CANVAS_WIDTH, canvasHeight)
     ctx.beginPath()
     if (hoveredScissorY !== null) {
@@ -229,7 +233,7 @@ const CanvasWorkspace = ({
     }
     needsExtension.current = false
     scheduleAutoSave()
-  }, [canvasHeight, captureSnapshot, getCanvasContext, hoveredScissorY, scheduleAutoSave])
+  }, [canvasHeight, captureSnapshot, getCanvasContext, hoveredScissorY, scheduleAutoSave, backgroundColor])
 
   const handlePointerDown = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     event.preventDefault()
@@ -251,11 +255,11 @@ const CanvasWorkspace = ({
 
     ctx.beginPath()
     ctx.moveTo(x, y)
-    ctx.strokeStyle = tool === 'pen' ? 'black' : 'white'
+    ctx.strokeStyle = tool === 'pen' ? penColor : backgroundColor
     ctx.lineWidth = strokeWidth
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
-  }, [captureSnapshot, getCanvasContext, strokeWidth, tool, zoom, responsiveScale])
+  }, [captureSnapshot, getCanvasContext, strokeWidth, tool, zoom, responsiveScale, penColor, backgroundColor])
 
   const handlePointerMove = useCallback((event: PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing.current) return
@@ -370,7 +374,7 @@ const CanvasWorkspace = ({
             const newCtx = getCanvasContext()
             if (!newCtx) return
 
-            newCtx.fillStyle = 'white'
+            newCtx.fillStyle = backgroundColor
             newCtx.fillRect(0, 0, CANVAS_WIDTH, newHeight)
             newCtx.putImageData(lowerImageData, 0, 0)
             scheduleAutoSave()
@@ -401,9 +405,9 @@ const CanvasWorkspace = ({
       return
     }
 
-    ctx.fillStyle = 'white'
+    ctx.fillStyle = backgroundColor
     ctx.fillRect(0, 0, CANVAS_WIDTH, canvasHeight)
-  }, [canvasHeight, directoryHandle, getCanvasContext])
+  }, [canvasHeight, directoryHandle, getCanvasContext, backgroundColor])
 
   useEffect(() => {
     if (!pendingRestoreRef.current) return

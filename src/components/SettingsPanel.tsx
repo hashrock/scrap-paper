@@ -8,12 +8,19 @@ interface KeyboardShortcuts {
 interface SettingsPanelProps {
   visible: boolean
   shortcuts: KeyboardShortcuts
+  penColor: string
+  backgroundColor: string
   onClose: () => void
   onShortcutChange: (key: keyof KeyboardShortcuts, value: string) => void
+  onPenColorChange: (color: string) => void
+  onBackgroundColorChange: (color: string) => void
 }
 
-const SettingsPanel = ({ visible, shortcuts, onClose, onShortcutChange }: SettingsPanelProps) => {
+const SettingsPanel = ({ visible, shortcuts, penColor, backgroundColor, onClose, onShortcutChange, onPenColorChange, onBackgroundColorChange }: SettingsPanelProps) => {
   const [editingShortcut, setEditingShortcut] = useState<keyof KeyboardShortcuts | null>(null)
+
+  const penColorPresets = ['#000000', '#1a1a1a', '#8b0000', '#006400', '#00008b', '#4b0082', '#2f4f4f', '#8b4513']
+  const backgroundColorPresets = ['#ffffff', '#f5f5dc', '#ffe4e1', '#e0f7e9', '#e6f3ff', '#fff8dc', '#f0e6ff', '#f5f5f5']
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (!editingShortcut) return
@@ -222,6 +229,91 @@ const SettingsPanel = ({ visible, shortcuts, onClose, onShortcutChange }: Settin
                     <span>Show settings</span>
                     <kbd style={{ fontWeight: 600, fontFamily: 'monospace', color: '#374151' }}>?</kbd>
                   </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600, color: '#111' }}>
+              Colors
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: '#374151' }}>
+                  Pen Color
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {penColorPresets.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => onPenColorChange(color)}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '8px',
+                        border: penColor === color ? '3px solid #3b82f6' : '2px solid #e5e7eb',
+                        backgroundColor: color,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: penColor === color ? '0 0 0 3px rgba(59, 130, 246, 0.2)' : 'none'
+                      }}
+                      title={color}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={penColor}
+                    onChange={(e) => onPenColorChange(e.target.value)}
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '8px',
+                      border: '2px solid #e5e7eb',
+                      cursor: 'pointer'
+                    }}
+                    title="Custom color"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: '#374151' }}>
+                  Background Color
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {backgroundColorPresets.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => onBackgroundColorChange(color)}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '8px',
+                        border: backgroundColor === color ? '3px solid #3b82f6' : '2px solid #e5e7eb',
+                        backgroundColor: color,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: backgroundColor === color ? '0 0 0 3px rgba(59, 130, 246, 0.2)' : 'none'
+                      }}
+                      title={color}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={backgroundColor}
+                    onChange={(e) => onBackgroundColorChange(e.target.value)}
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '8px',
+                      border: '2px solid #e5e7eb',
+                      cursor: 'pointer'
+                    }}
+                    title="Custom color"
+                  />
                 </div>
               </div>
             </div>
